@@ -1,0 +1,12 @@
+{
+  "name": "rag-project",
+  "version": "1.0.0",
+  "description": "Chatbot RAG dengan Clean Architecture",
+  "type": "module",
+  "scripts": {
+    "start": "node src/main.js",
+    "dev": "node --watch src/main.js",
+    "test": "node --test \"test/*.test.js\""
+  },
+  "engines": { "node": ">=20" }
+}

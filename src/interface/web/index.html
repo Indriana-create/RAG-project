@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Asisten RAG</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%278%27 fill=%27%235b5bf0%27/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand"><span class="logo" aria-hidden="true">✦</span><div><h1>Asisten Pengetahuan</h1><p>Jawaban dari dokumen internal Anda</p></div></div>
+      <button id="clear" class="ghost" type="button">Percakapan baru</button>
+    </header>
+
+    <main id="messages" class="messages" aria-live="polite">
+      <section id="welcome" class="welcome">
+        <h2>Halo! Apa yang ingin Anda ketahui?</h2>
+        <div class="suggestions">
+          <button type="button">Berapa lama pengiriman ke luar Jawa?</button>
+          <button type="button">Bagaimana cara mengembalikan barang?</button>
+          <button type="button">Metode pembayaran apa saja yang tersedia?</button>
+          <button type="button">Kapan jam layanan dukungan?</button>
+        </div>
+      </section>
+    </main>
+
+    <form id="form" class="composer" autocomplete="off">
+      <textarea id="input" rows="1" maxlength="1000" placeholder="Tulis pertanyaan…" aria-label="Pertanyaan"></textarea>
+      <button id="send" type="submit" aria-label="Kirim">➤</button>
+    </form>
+  </div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
