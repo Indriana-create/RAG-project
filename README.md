@@ -262,7 +262,7 @@ TEST_DATABASE_URL=postgres://user:pass@localhost:5432/ragtest npm test   # + tes
 
 ## Cloudflare dan cache
 
-Server mengirim `Cache-Control: no-store` untuk semua halaman dan berkas statis, **dan** menambahkan `?v=<hash isi berkas>` otomatis pada URL JS/CSS/gambar (di HTML dan di import antar-modul), sehingga peramban yang masih menyimpan salinan lama tetap meminta berkas baru setiap kali aplikasi diperbarui. Selain itu server supaya Cloudflare tidak menyajikan `admin.js`/`app.js` versi lama setelah aplikasi diperbarui. Bila setelah update halaman terasa tidak berubah (mis. tombol Simpan hanya memuat ulang halaman), buka Cloudflare → **Caching → Configuration → Purge Everything**, lalu muat ulang peramban dengan Ctrl+Shift+R.
+Server mengirim `Cache-Control: no-store` untuk semua halaman dan berkas statis, **dan** menambahkan `?v=<hash isi berkas>` otomatis pada URL JS/CSS/gambar (di HTML dan di import antar-modul), sehingga peramban yang masih menyimpan salinan lama tetap meminta berkas baru setiap kali aplikasi diperbarui. Dengan begitu Cloudflare maupun peramban tidak menyajikan `admin.js`/`app.js` versi lama setelah aplikasi diperbarui. Bila setelah update halaman terasa tidak berubah (mis. tombol Simpan hanya memuat ulang halaman), buka Cloudflare → **Caching → Configuration → Purge Everything**, lalu muat ulang peramban dengan Ctrl+Shift+R.
 
 ## Bahasa antarmuka (ID / EN)
 
