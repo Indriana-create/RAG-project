@@ -4,7 +4,9 @@ import { TfidfRetriever } from './infrastructure/retrieval/tfidf-retriever.js';
 import { PgVectorRetriever } from './infrastructure/retrieval/pgvector-retriever.js';
 import { JsonFileKnowledgeRepository } from './infrastructure/persistence/json-file-knowledge-repository.js';
 import { PostgresKnowledgeRepository } from './infrastructure/persistence/postgres/postgres-knowledge-repository.js';
-import { migrateDocuments } from './infrastructure/persistence/postgres/schema.js';
+import { JsonFileAdminUserRepository } from './infrastructure/persistence/json-file-admin-user-repository.js';
+import { PostgresAdminUserRepository } from './infrastructure/persistence/postgres/postgres-admin-user-repository.js';
+import { migrateAdminUsers, migrateDocuments } from './infrastructure/persistence/postgres/schema.js';
 import { ExtractiveAnswerGenerator } from './infrastructure/generation/extractive-answer-generator.js';
 import { AnthropicAnswerGenerator } from './infrastructure/generation/anthropic-answer-generator.js';
 import { OpenAiCompatibleAnswerGenerator } from './infrastructure/generation/openai-compatible-answer-generator.js';
@@ -35,6 +37,7 @@ const sslFrom = (value) => {
 export async function createDependencies(env, { logger = console } = {}) {
   const closers = [];
   let repository;
+  let adminUsers;
   let retriever;
   let mode = 'tfidf';
 
@@ -52,7 +55,9 @@ export async function createDependencies(env, { logger = console } = {}) {
     closers.push(() => pool.end());
     try {
       await migrateDocuments(pool);
+      await migrateAdminUsers(pool);
       repository = new PostgresKnowledgeRepository(pool);
+      adminUsers = new PostgresAdminUserRepository(pool);
       if (embedder) {
         retriever = await PgVectorRetriever.create({
           pool, embedder, docPrefix: env.EMBEDDING_DOC_PREFIX ?? '', queryPrefix: env.EMBEDDING_QUERY_PREFIX ?? '', logger,
@@ -68,6 +73,7 @@ export async function createDependencies(env, { logger = console } = {}) {
   } else {
     if (embedder) throw new Error('EMBEDDING_MODEL membutuhkan DATABASE_URL (PostgreSQL + pgvector)');
     repository = new JsonFileKnowledgeRepository(path.join(env.DATA_DIR ?? './data', 'knowledge.json'));
+    adminUsers = new JsonFileAdminUserRepository(path.join(env.DATA_DIR ?? './data', 'admin-users.json'));
     retriever = new TfidfRetriever();
   }
 
@@ -97,6 +103,7 @@ export async function createDependencies(env, { logger = console } = {}) {
 
   return {
     repository,
+    adminUsers,
     retriever,
     answerGenerator,
     minScore,

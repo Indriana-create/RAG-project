@@ -11,6 +11,19 @@ export async function migrateDocuments(pool) {
     )`);
 }
 
+export async function migrateAdminUsers(pool) {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS admin_users (
+      id            text PRIMARY KEY,
+      username      text        NOT NULL UNIQUE,
+      display_name  text        NOT NULL,
+      password_hash text        NOT NULL,
+      token_version integer     NOT NULL DEFAULT 1,
+      created_at    timestamptz NOT NULL DEFAULT now(),
+      last_login_at timestamptz
+    )`);
+}
+
 /**
  * Tabel chunk + vektor. Isinya TURUNAN dari knowledge_documents, jadi aman dibuat
  * ulang bila dimensi embedding berubah (mis. ganti model embedding).

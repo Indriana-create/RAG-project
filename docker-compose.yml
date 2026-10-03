@@ -4,7 +4,13 @@ services:
     ports:
       - "3000:3000"
     environment:
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       ADMIN_TOKEN: ${ADMIN_TOKEN:-}
+      SESSION_SECRET: ${SESSION_SECRET:-}
+      SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-}
+      TRUST_PROXY: ${TRUST_PROXY:-}
+      COOKIE_SECURE: ${COOKIE_SECURE:-}
       # --- PostgreSQL (kosong = simpan di file JSON pada volume rag-data) ---
       DATABASE_URL: ${DATABASE_URL:-}
       DATABASE_SSL: ${DATABASE_SSL:-}

@@ -2,13 +2,10 @@ import { createAdminApi } from './admin-api.js';
 
 const $ = (id) => document.getElementById(id);
 const MAX_FILE = 1_000_000;
-const storage = {
-  get: () => { try { return sessionStorage.getItem('adminToken') ?? ''; } catch { return ''; } },
-  set: (v) => { try { v ? sessionStorage.setItem('adminToken', v) : sessionStorage.removeItem('adminToken'); } catch { /* abaikan */ } },
-};
-let token = storage.get();
+let me = null;
 let editingId = null;
-const api = createAdminApi(() => token);
+let passwordTarget = null; // null = ubah password sendiri; {id, username} = reset password akun lain
+const api = createAdminApi();
 
 function toast(message) {
   const el = $('toast');
@@ -19,24 +16,29 @@ function toast(message) {
 }
 
 function showLogin(message = '') {
-  token = '';
-  storage.set('');
+  me = null;
   $('panel').hidden = true;
-  $('logout').hidden = true;
   $('login').hidden = false;
   $('loginError').textContent = message;
-  $('token').focus();
+  $('loginUser').focus();
 }
+
+function showPanel(user) {
+  me = user;
+  $('login').hidden = true;
+  $('panel').hidden = false;
+  $('whoName').textContent = user.displayName;
+  $('whoHandle').textContent = `@${user.username}`;
+  $('avatar').textContent = user.displayName.trim().charAt(0).toUpperCase() || '?';
+}
+
+const sessionExpired = () => showLogin('Sesi berakhir, silakan masuk lagi.');
 
 async function refresh() {
   try {
-    const items = await api.list();
-    $('login').hidden = true;
-    $('panel').hidden = false;
-    $('logout').hidden = false;
-    render(items);
+    render(await api.list());
   } catch (err) {
-    if (err.status === 401) showLogin(token ? 'Token salah.' : '');
+    if (err.status === 401) sessionExpired();
     else toast(err.message);
   }
 }
@@ -104,7 +106,7 @@ async function run(action, successMessage) {
     await action();
     toast(successMessage);
   } catch (err) {
-    if (err.status === 401) return showLogin('Sesi berakhir, masuk lagi.');
+    if (err.status === 401) return sessionExpired();
     toast(err.message);
   }
   await refresh();
@@ -133,14 +135,147 @@ async function openEditor(id = null) {
   $('docTitle').focus();
 }
 
-$('loginForm').addEventListener('submit', (e) => {
+$('loginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
-  token = $('token').value.trim();
-  storage.set(token);
-  $('token').value = '';
-  refresh();
+  $('loginBtn').disabled = true;
+  $('loginError').textContent = '';
+  try {
+    const user = await api.login($('loginUser').value, $('loginPass').value);
+    $('loginPass').value = '';
+    showPanel(user);
+    await refresh();
+  } catch (err) {
+    $('loginError').textContent = err.status === 429
+      ? `${err.message} (coba lagi dalam ${Math.max(1, Math.ceil(err.retryAfter / 60))} menit)`
+      : err.message;
+    $('loginPass').select();
+  } finally {
+    $('loginBtn').disabled = false;
+  }
 });
-$('logout').addEventListener('click', () => showLogin());
+
+$('logout').addEventListener('click', async () => {
+  await api.logout().catch(() => {});
+  showLogin();
+});
+
+// Tombol "Lihat/Sembunyikan" password
+document.addEventListener('click', (e) => {
+  const toggle = e.target.closest('[data-toggle]');
+  if (toggle) {
+    const input = $(toggle.dataset.toggle);
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    toggle.textContent = show ? 'Sembunyikan' : 'Lihat';
+    return;
+  }
+  const close = e.target.closest('[data-close]');
+  if (close) $(close.dataset.close).close();
+});
+
+// ---------- Ubah / reset password ----------
+function openPasswordDialog(target = null) {
+  passwordTarget = target;
+  $('passwordForm').reset();
+  $('pwError').textContent = '';
+  const isReset = Boolean(target);
+  $('pwTitle').textContent = isReset ? `Reset password @${target.username}` : 'Ubah password';
+  $('pwHint').textContent = isReset
+    ? 'Minimal 8 karakter. Akun itu akan keluar dari semua perangkat dan harus login dengan password baru.'
+    : 'Minimal 8 karakter. Setelah diganti, perangkat lain yang masih login akan keluar otomatis.';
+  $('pwCurrentRow').hidden = isReset;
+  $('pwCurrent').required = !isReset;
+  for (const id of ['pwCurrent', 'pwNew', 'pwConfirm']) { $(id).type = 'password'; }
+  document.querySelectorAll('#passwordForm [data-toggle]').forEach((b) => { b.textContent = 'Lihat'; });
+  $('passwordDialog').showModal();
+  (isReset ? $('pwNew') : $('pwCurrent')).focus();
+}
+
+$('openPassword').addEventListener('click', () => openPasswordDialog());
+
+$('passwordForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const next = $('pwNew').value;
+  if (next.length < 8) return void ($('pwError').textContent = 'Password baru minimal 8 karakter');
+  if (next !== $('pwConfirm').value) return void ($('pwError').textContent = 'Konfirmasi password tidak sama');
+  $('pwSave').disabled = true;
+  try {
+    if (passwordTarget) await api.resetPassword(passwordTarget.id, next);
+    else await api.changePassword($('pwCurrent').value, next);
+    $('passwordDialog').close();
+    toast(passwordTarget ? `Password @${passwordTarget.username} direset` : 'Password berhasil diubah');
+  } catch (err) {
+    if (err.status === 401) { $('passwordDialog').close(); sessionExpired(); }
+    else $('pwError').textContent = err.message;
+  } finally {
+    $('pwSave').disabled = false;
+  }
+});
+
+// ---------- Kelola akun admin ----------
+async function renderUsers() {
+  const items = await api.users();
+  $('userList').replaceChildren(...items.map((u) => {
+    const li = document.createElement('li');
+    li.className = 'item';
+    const info = document.createElement('div');
+    info.className = 'info';
+    const h = document.createElement('h3');
+    h.textContent = u.displayName;
+    const handle = document.createElement('span');
+    handle.className = 'muted';
+    handle.textContent = ` @${u.username}`;
+    h.append(handle);
+    if (u.id === me.id) {
+      const badge = document.createElement('span');
+      badge.className = 'badge me';
+      badge.textContent = 'Anda';
+      h.append(badge);
+    }
+    const meta = document.createElement('p');
+    meta.textContent = u.lastLoginAt ? `Login terakhir ${new Date(u.lastLoginAt).toLocaleString('id-ID')}` : 'Belum pernah login';
+    info.append(h, meta);
+    const controls = document.createElement('div');
+    controls.className = 'controls';
+    if (u.id !== me.id) {
+      controls.append(
+        button('Reset password', 'ghost', () => openPasswordDialog({ id: u.id, username: u.username })),
+        button('Hapus', 'ghost danger', async () => {
+          if (!confirm(`Hapus akun "${u.username}"? Akun itu langsung keluar dari semua perangkat.`)) return;
+          try { await api.removeUser(u.id); toast('Akun dihapus'); await renderUsers(); }
+          catch (err) { if (err.status === 401) { $('usersDialog').close(); sessionExpired(); } else toast(err.message); }
+        }),
+      );
+    }
+    li.append(info, controls);
+    return li;
+  }));
+}
+
+$('openUsers').addEventListener('click', async () => {
+  $('userForm').reset();
+  $('userError').textContent = '';
+  try { await renderUsers(); } catch (err) { return err.status === 401 ? sessionExpired() : toast(err.message); }
+  $('usersDialog').showModal();
+});
+
+$('userForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  $('userSave').disabled = true;
+  $('userError').textContent = '';
+  try {
+    await api.createUser({ username: $('newUsername').value, displayName: $('newDisplay').value, password: $('newPassword').value });
+    $('userForm').reset();
+    toast('Admin ditambahkan');
+    await renderUsers();
+  } catch (err) {
+    if (err.status === 401) { $('usersDialog').close(); sessionExpired(); }
+    else $('userError').textContent = err.message;
+  } finally {
+    $('userSave').disabled = false;
+  }
+});
+
 $('add').addEventListener('click', () => openEditor());
 $('searchForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -153,7 +288,7 @@ $('searchForm').addEventListener('submit', async (e) => {
       : 'Tidak ada hasil.';
     $('searchResults').replaceChildren(...hits.map(renderHit));
   } catch (err) {
-    if (err.status === 401) return showLogin('Sesi berakhir, masuk lagi.');
+    if (err.status === 401) return sessionExpired();
     info.textContent = err.message;
     $('searchResults').replaceChildren();
   }
@@ -204,11 +339,14 @@ $('editorForm').addEventListener('submit', async (e) => {
     toast('Knowledge disimpan');
     await refresh();
   } catch (err) {
-    if (err.status === 401) { $('editor').close(); showLogin('Sesi berakhir, masuk lagi.'); }
+    if (err.status === 401) { $('editor').close(); sessionExpired(); }
     else $('editorError').textContent = err.message;
   } finally {
     $('save').disabled = false;
   }
 });
 
-if (token) refresh(); else showLogin();
+// Mulai: cek apakah masih ada sesi (cookie), bila tidak tampilkan form login.
+api.me()
+  .then(async (user) => { showPanel(user); await refresh(); })
+  .catch(() => showLogin());

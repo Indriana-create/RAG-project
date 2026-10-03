@@ -12,6 +12,11 @@ import { PgVectorRetriever } from '../src/infrastructure/retrieval/pgvector-retr
 import { OpenAiCompatibleEmbedder } from '../src/infrastructure/embedding/openai-compatible-embedder.js';
 import { createDependencies } from '../src/bootstrap.js';
 import { buildApp } from '../src/composition.js';
+import { PostgresAdminUserRepository } from '../src/infrastructure/persistence/postgres/postgres-admin-user-repository.js';
+import { migrateAdminUsers } from '../src/infrastructure/persistence/postgres/schema.js';
+import { createAdminUser } from '../src/domain/admin-user.js';
+import { ConflictError } from '../src/domain/errors.js';
+import { ScryptPasswordHasher } from '../src/infrastructure/security/scrypt-password-hasher.js';
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 const opts = { skip: DATABASE_URL ? false : 'set TEST_DATABASE_URL (PostgreSQL + pgvector) untuk menjalankan tes ini' };
@@ -22,7 +27,7 @@ const quiet = { warn() {}, log() {} };
 let pool;
 before(() => { if (DATABASE_URL) pool = new pg.Pool({ connectionString: DATABASE_URL }); });
 after(() => pool?.end());
-const reset = () => pool.query('DROP TABLE IF EXISTS knowledge_chunks, knowledge_documents CASCADE');
+const reset = () => pool.query('DROP TABLE IF EXISTS knowledge_chunks, knowledge_documents, admin_users CASCADE');
 const doc = (id, title, content, enabled = true) => createKnowledgeDocument({ id, title, content, enabled, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' });
 const chunk = (documentId, title, text, index = 0) => createChunk({ documentId, title, index, text });
 
@@ -158,6 +163,65 @@ test('bootstrap penuh: PostgreSQL + pgvector + LLM lokal (streaming) lewat HTTP'
     const broken = await stream('berapa lama garansi produk?');
     assert.deepEqual(broken.map((e) => e.type), ['sources', 'error']);
     assert.equal(broken[1].message, 'Layanan model bahasa sedang tidak tersedia. Coba lagi sebentar.');
+  } finally {
+    await new Promise((r) => { app.server.closeAllConnections(); app.server.close(r); });
+    await deps.close();
+    await llm.stop();
+  }
+});
+
+test('PostgresAdminUserRepository: simpan, ubah, username unik, hapus', opts, async () => {
+  await reset();
+  await migrateAdminUsers(pool);
+  await migrateAdminUsers(pool); // idempoten
+  const repo = new PostgresAdminUserRepository(pool);
+  const user = (id, username, extra = {}) => createAdminUser({ id, username, passwordHash: 'scrypt$x', createdAt: `2026-01-0${id}T00:00:00.000Z`, ...extra });
+  await repo.save(user('1', 'budi', { displayName: 'Budi S' }));
+  await repo.save(user('2', 'ani'));
+  await assert.rejects(repo.save(user('3', 'budi')), ConflictError);
+  await repo.save({ ...user('1', 'budi', { displayName: 'Budi S' }), tokenVersion: 4, lastLoginAt: '2026-02-02T00:00:00.000Z' });
+
+  const budi = await repo.getByUsername('budi');
+  assert.equal(budi.id, '1');
+  assert.equal(budi.displayName, 'Budi S');
+  assert.equal(budi.tokenVersion, 4);
+  assert.equal(budi.lastLoginAt, '2026-02-02T00:00:00.000Z');
+  assert.equal(budi.createdAt, '2026-01-01T00:00:00.000Z');
+  assert.deepEqual((await repo.list()).map((u) => u.username), ['budi', 'ani']);
+  assert.equal(await repo.get('zzz'), undefined);
+  assert.equal(await repo.delete('2'), true);
+  assert.equal(await repo.delete('2'), false);
+});
+
+test('akun admin di PostgreSQL: seed, login lewat HTTP, password tersimpan sebagai hash', opts, async () => {
+  await reset();
+  const llm = await startFakeLlm();
+  const deps = await createDependencies({ DATABASE_URL, EMBEDDING_MODEL: 'emb', LLM_BASE_URL: llm.baseUrl, LLM_MODEL: 'm' }, { logger: quiet });
+  const app = await buildApp({
+    ...deps, seedDir: path.join(root, 'knowledge'), publicDir: path.join(root, 'src/interface/web'),
+    bootstrapAdmin: { username: 'lumi', password: 'rahasia-lumi-1' }, hasher: new ScryptPasswordHasher({ N: 1024 }), sessionSecret: 'rahasia-sesi-pg-untuk-tes',
+  });
+  await new Promise((r) => app.server.listen(0, r));
+  const base = `http://localhost:${app.server.address().port}`;
+  const post = (url, body, cookie) => fetch(base + url, { method: 'POST', headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) }, body: JSON.stringify(body) });
+  try {
+    assert.equal(app.seededAdmin.created, true);
+    const { rows } = await pool.query('SELECT username, password_hash FROM admin_users');
+    assert.equal(rows.length, 1);
+    assert.match(rows[0].password_hash, /^scrypt\$1024\$8\$1\$/);
+    assert.doesNotMatch(rows[0].password_hash, /rahasia-lumi-1/);
+
+    assert.equal((await post('/api/admin/login', { username: 'lumi', password: 'salah-salah' })).status, 401);
+    const ok = await post('/api/admin/login', { username: 'lumi', password: 'rahasia-lumi-1' });
+    assert.equal(ok.status, 200);
+    const cookie = ok.headers.get('set-cookie').split(';')[0];
+
+    const changed = await post('/api/admin/password', { currentPassword: 'rahasia-lumi-1', newPassword: 'password-baru-pg' }, cookie);
+    assert.equal(changed.status, 200);
+    const me = await fetch(base + '/api/admin/me', { headers: { cookie } });
+    assert.equal(me.status, 401); // sesi lama dicabut (token_version naik di database)
+    assert.equal((await pool.query('SELECT token_version FROM admin_users')).rows[0].token_version, 2);
+    assert.equal((await post('/api/admin/login', { username: 'lumi', password: 'password-baru-pg' })).status, 200);
   } finally {
     await new Promise((r) => { app.server.closeAllConnections(); app.server.close(r); });
     await deps.close();

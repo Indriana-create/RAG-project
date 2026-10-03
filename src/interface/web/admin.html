@@ -13,20 +13,40 @@
   <main class="admin">
     <header class="admin-top">
       <div class="brand"><span class="logo" aria-hidden="true">✦</span><div><h1>Admin Knowledge</h1><p>Kelola dokumen yang dipakai chatbot</p></div></div>
-      <nav><a href="/">← Chatbot</a><button id="logout" class="ghost" type="button" hidden>Keluar</button></nav>
+      <nav><a href="/">← Chatbot</a></nav>
     </header>
 
     <section id="login" class="card" hidden>
       <h2>Masuk admin</h2>
       <form id="loginForm">
-        <label for="token">Token admin</label>
-        <input id="token" type="password" autocomplete="off" required>
+        <label for="loginUser">Username</label>
+        <input id="loginUser" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+        <label for="loginPass">Password</label>
+        <div class="pw">
+          <input id="loginPass" type="password" autocomplete="current-password" required>
+          <button type="button" class="ghost sm" data-toggle="loginPass" aria-label="Tampilkan password">Lihat</button>
+        </div>
         <p id="loginError" class="error" role="alert"></p>
-        <button class="primary" type="submit">Masuk</button>
+        <button class="primary" type="submit" id="loginBtn">Masuk</button>
       </form>
     </section>
 
     <section id="panel" hidden>
+      <div class="account card">
+        <div class="who">
+          <span class="avatar" id="avatar" aria-hidden="true"></span>
+          <div>
+            <small class="muted">Masuk sebagai</small>
+            <div><strong id="whoName"></strong> <span class="muted" id="whoHandle"></span></div>
+          </div>
+        </div>
+        <div class="who-actions">
+          <button id="openPassword" class="ghost" type="button">Ubah password</button>
+          <button id="openUsers" class="ghost" type="button">Kelola admin</button>
+          <button id="logout" class="ghost" type="button">Keluar</button>
+        </div>
+      </div>
+
       <div class="toolbar">
         <p id="summary" class="muted"></p>
         <button id="add" class="primary" type="button">+ Tambah knowledge</button>
@@ -60,6 +80,45 @@
       <div class="actions">
         <button class="ghost" type="button" id="cancel">Batal</button>
         <button class="primary" type="submit" id="save">Simpan</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="passwordDialog">
+    <form id="passwordForm">
+      <h2 id="pwTitle">Ubah password</h2>
+      <p class="muted" id="pwHint">Minimal 8 karakter. Setelah diganti, perangkat lain yang masih login akan keluar otomatis.</p>
+      <div id="pwCurrentRow">
+        <label for="pwCurrent">Password saat ini</label>
+        <div class="pw"><input id="pwCurrent" type="password" autocomplete="current-password"><button type="button" class="ghost sm" data-toggle="pwCurrent">Lihat</button></div>
+      </div>
+      <label for="pwNew">Password baru</label>
+      <div class="pw"><input id="pwNew" type="password" autocomplete="new-password" minlength="8" maxlength="128" required><button type="button" class="ghost sm" data-toggle="pwNew">Lihat</button></div>
+      <label for="pwConfirm">Ulangi password baru</label>
+      <div class="pw"><input id="pwConfirm" type="password" autocomplete="new-password" minlength="8" maxlength="128" required><button type="button" class="ghost sm" data-toggle="pwConfirm">Lihat</button></div>
+      <p id="pwError" class="error" role="alert"></p>
+      <div class="actions">
+        <button class="ghost" type="button" data-close="passwordDialog">Batal</button>
+        <button class="primary" type="submit" id="pwSave">Simpan password</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="usersDialog">
+    <h2>Akun admin</h2>
+    <ul id="userList" class="list users"></ul>
+    <form id="userForm">
+      <h3>Tambah admin</h3>
+      <div class="grid2">
+        <div><label for="newUsername">Username</label><input id="newUsername" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="32" required></div>
+        <div><label for="newDisplay">Nama tampilan (opsional)</label><input id="newDisplay" autocomplete="off" maxlength="60"></div>
+      </div>
+      <label for="newPassword">Password awal (minimal 8 karakter)</label>
+      <div class="pw"><input id="newPassword" type="password" autocomplete="new-password" minlength="8" maxlength="128" required><button type="button" class="ghost sm" data-toggle="newPassword">Lihat</button></div>
+      <p id="userError" class="error" role="alert"></p>
+      <div class="actions">
+        <button class="ghost" type="button" data-close="usersDialog">Tutup</button>
+        <button class="primary" type="submit" id="userSave">Tambah admin</button>
       </div>
     </form>
   </dialog>

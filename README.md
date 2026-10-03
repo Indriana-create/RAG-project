@@ -8,12 +8,12 @@ Tanpa konfigurasi apa pun (mode paling sederhana: file JSON + TF-IDF + jawaban e
 
 ```bash
 npm install
-ADMIN_TOKEN=rahasia npm start     # http://localhost:3000
+ADMIN_USERNAME=admin ADMIN_PASSWORD=pilih-sendiri npm start     # http://localhost:3000
 npm test
 ```
 
 - Chat: `http://localhost:3000` — jawaban muncul **bertahap** (streaming)
-- Admin: `http://localhost:3000/admin.html` (login dengan `ADMIN_TOKEN`; bila tidak diset, token acak dicetak di log)
+- Admin: `http://localhost:3000/admin.html` — login dengan **username + password** (lihat [Akun admin](#akun-admin))
 
 ### Dengan Docker
 
@@ -22,7 +22,7 @@ cp .env.example .env     # lalu isi/aktifkan variabel yang dibutuhkan
 docker compose --env-file .env up --build
 ```
 
-PowerShell tanpa `.env`: `$env:ADMIN_TOKEN="rahasia"; docker compose up --build`.
+PowerShell tanpa `.env`: `$env:ADMIN_PASSWORD="pilih-sendiri"; docker compose up --build`.
 
 ### Di server dengan PostgreSQL/LLM yang hanya terbuka di loopback
 
@@ -50,7 +50,12 @@ Implementasi dipilih otomatis di `src/bootstrap.js` dari variabel berikut:
 | `EMBEDDING_MODEL` (+ `EMBEDDING_BASE_URL`) | Pencarian semantik via pgvector | TF-IDF (cocok kata) |
 | `LLM_BASE_URL` + `LLM_MODEL` | LLM lokal OpenAI-compatible | `ANTHROPIC_API_KEY` → Claude, selain itu ekstraktif |
 | `MIN_SCORE` | Ambang kemiripan minimum | 0.05 (TF-IDF) / 0.35 (vektor) |
-| `ADMIN_TOKEN` | Token login admin | token acak di log |
+| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | Akun admin **pertama** (hanya dipakai bila belum ada akun) | `admin` + password acak dicetak sekali di log |
+| `ADMIN_TOKEN` | Token API untuk otomasi (n8n); tidak untuk login manusia | API token nonaktif |
+| `SESSION_SECRET` | Kunci penanda sesi login | diturunkan dari `ADMIN_TOKEN`, atau acak (login ulang tiap restart) |
+| `SESSION_TTL_HOURS` | Lama sesi login | 12 |
+| `TRUST_PROXY=true` | Percaya header Cloudflare/proxy (IP asli, HTTPS) — wajib bila di belakang tunnel/proxy | tidak |
+| `COOKIE_SECURE` | `auto` / `true` / `false` untuk atribut `Secure` cookie | `auto` |
 | `SEED_ON_EMPTY=false` | Jangan impor `knowledge/` saat penyimpanan kosong | impor |
 
 Daftar lengkap ada di `.env.example`.
@@ -68,7 +73,7 @@ BE memanggil LLM **langsung** lewat endpoint OpenAI-compatible `/v1/chat/complet
 `LLM_MODEL` harus sama dengan nama model di server tersebut. Contoh LM Studio:
 
 ```bash
-LLM_BASE_URL=http://localhost:1234/v1 LLM_MODEL=nama-model ADMIN_TOKEN=rahasia npm start
+LLM_BASE_URL=http://localhost:1234/v1 LLM_MODEL=nama-model ADMIN_PASSWORD=pilih-sendiri npm start
 ```
 
 **Dari dalam Docker (Windows/Mac)** `localhost` menunjuk ke kontainer itu sendiri. Pakai `http://host.docker.internal:1234/v1`, dan di LM Studio aktifkan **Serve on Local Network** (bila tidak, koneksi dari Docker ditolak). Firewall Windows juga harus mengizinkan port tersebut.
@@ -109,13 +114,31 @@ LLM_BASE_URL=http://localhost:1234/v1 LLM_MODEL=nama-model npm start
 
 Skor kemiripan sangat bergantung pada model embedding, jadi angka bawaan (0.35) hanya titik awal. Buka **Admin → Uji pencarian**, coba beberapa pertanyaan relevan dan tidak relevan, lalu atur `MIN_SCORE` di antara skor tertinggi pertanyaan tidak relevan dan skor terendah pertanyaan relevan.
 
+## Akun admin
+
+Halaman `/admin.html` memakai **akun per orang** (username + password), bukan satu token bersama.
+
+- **Akun pertama** dibuat otomatis saat aplikasi pertama kali jalan dengan `ADMIN_USERNAME` (bawaan `admin`) dan `ADMIN_PASSWORD`. Tanpa `ADMIN_PASSWORD`, password acak dicetak **sekali** di log. Setelah akun ada, kedua variabel itu **diabaikan**: hapus `ADMIN_PASSWORD` dari `.env` setelah login pertama.
+- Siapa yang sedang login tampil di bagian atas halaman ("Masuk sebagai ...").
+- **Ubah password** sendiri lewat tombol di bagian atas (minimal 8 karakter, tidak wajib simbol). Perangkat lain yang masih login otomatis keluar.
+- **Kelola admin**: tambah akun, reset password akun lain, hapus akun. Tidak bisa menghapus diri sendiri atau akun terakhir.
+- Password disimpan sebagai hash **scrypt** (tabel `admin_users` di PostgreSQL, atau `data/admin-users.json` tanpa database). Sesi berupa cookie `HttpOnly` + `SameSite=Lax` (+ `Secure` bila lewat HTTPS), bukan token yang disimpan di JavaScript.
+- **Pembatasan login**: 5 kali gagal untuk satu akun, atau 30 kali dari satu alamat IP, mengunci 5 menit.
+- Permintaan yang mengubah data dari situs lain ditolak (proteksi CSRF).
+- **Lupa password semua akun**: hapus baris di tabel `admin_users` (atau berkas `admin-users.json`) lalu restart dengan `ADMIN_USERNAME`/`ADMIN_PASSWORD` baru.
+
+### Di belakang Cloudflare Tunnel / proxy
+Set `TRUST_PROXY=true` agar pembatas login memakai IP asli pengunjung (`CF-Connecting-IP`) dan cookie otomatis `Secure` saat diakses lewat HTTPS. Tanpa itu, semua pengunjung tampak berasal dari alamat `cloudflared` dan satu penyerang bisa mengunci semua orang. Aktifkan hanya bila aplikasi **tidak** bisa dijangkau langsung dari luar tanpa melewati proxy, atau batasi dengan firewall. Disarankan menambah **Cloudflare Access** di depan hostname ini sebagai lapisan pertama.
+
+Batasan: logout menghapus cookie di peramban tetapi tidak membatalkan cookie yang sudah dicuri sebelum kedaluwarsa (sesi dicabut saat password diganti/direset atau akun dihapus).
+
 ## Mengelola knowledge
 
 Di `/admin.html` admin dapat **menambah, mengedit, menghapus, mengunggah `.md`/`.txt`, dan mengaktifkan/menonaktifkan** knowledge. Hanya knowledge **aktif** yang dipakai chatbot, dan perubahan langsung berlaku tanpa restart. Folder `knowledge/` hanyalah **dokumen awal**: diimpor sekali saat penyimpanan masih kosong.
 
 ### API admin (untuk n8n / otomasi)
 
-Semua endpoint butuh `Authorization: Bearer <ADMIN_TOKEN>`.
+Endpoint knowledge dapat diakses dengan sesi login **atau** `Authorization: Bearer <ADMIN_TOKEN>` (untuk otomasi seperti n8n; set `ADMIN_TOKEN` di `.env`). Endpoint akun (`/api/admin/me`, `/password`, `/users`) hanya untuk sesi login, token API tidak cukup.
 
 | Method | Path | Fungsi |
 |---|---|---|
@@ -125,6 +148,11 @@ Semua endpoint butuh `Authorization: Bearer <ADMIN_TOKEN>`.
 | PUT/PATCH | `/api/admin/knowledge/:id` | ubah sebagian `{title?, content?, enabled?}` |
 | DELETE | `/api/admin/knowledge/:id` | hapus |
 | POST | `/api/admin/search` | uji pencarian `{query}` → chunk + skor |
+| POST | `/api/admin/login` · `/logout` | masuk `{username, password}` / keluar (sesi) |
+| GET | `/api/admin/me` | akun yang sedang login (sesi) |
+| POST | `/api/admin/password` | ubah password sendiri `{currentPassword, newPassword}` (sesi) |
+| GET/POST | `/api/admin/users` | daftar / tambah akun `{username, displayName?, password}` (sesi) |
+| POST/DELETE | `/api/admin/users/:id/password` · `/api/admin/users/:id` | reset password / hapus akun (sesi) |
 
 API chat (publik): `POST /api/chat` (jawaban utuh) dan `POST /api/chat/stream` (Server-Sent Events: `sources` → `token`* → `done`/`error`).
 
@@ -152,7 +180,7 @@ src/
 │   ├── generation/    LLM lokal OpenAI-compatible, Claude API, ekstraktif
 │   └── llm/           HTTP, SSE, prompt bersama
 ├── interface/
-│   ├── http/          Server (JSON + SSE), controller chat & admin, autentikasi token
+│   ├── http/          Server (JSON + SSE), controller chat, knowledge & akun, sesi + token API
 │   └── web/           Frontend (index = chat, admin.html = kelola knowledge)
 ├── bootstrap.js       Memilih implementasi konkret dari environment
 ├── composition.js     Composition root: merakit use case, controller, server
@@ -164,14 +192,16 @@ Mengganti komponen cukup menulis adapter baru dan mengubah `bootstrap.js` — us
 ## Pengujian
 
 ```bash
-npm test                                                   # 22 tes; 4 tes PostgreSQL otomatis dilewati
+npm test                                                   # 45 tes; 6 tes PostgreSQL otomatis dilewati
 TEST_DATABASE_URL=postgres://user:pass@localhost:5432/ragtest npm test   # + tes PostgreSQL/pgvector
 ```
 
 `TEST_DATABASE_URL` harus menunjuk ke database **khusus tes** (tabel `knowledge_*` di-drop). LLM/embedding diganti server palsu OpenAI-compatible (`test/helpers/fake-llm.js`).
 
 ## Keterbatasan saat ini
-- Satu token admin bersama, tanpa pembatasan percobaan login; letakkan di belakang HTTPS/reverse proxy untuk produksi.
+- Semua admin berperan sama (belum ada peran/izin berbeda) dan belum ada catatan audit siapa mengubah knowledge.
+- Sesi tanpa status: tidak bisa dicabut satu per satu (lihat batasan di bagian Akun admin).
+- Pembatas login ada di memori, jadi hitungannya reset saat restart.
 - Riwayat chat di memori (hilang saat restart).
 - Unggah hanya `.md`/`.txt` (PDF/DOCX belum didukung; bisa lewat n8n).
 - Belum ada reranking/hybrid search; kualitas bergantung pada model embedding dan `MIN_SCORE`.

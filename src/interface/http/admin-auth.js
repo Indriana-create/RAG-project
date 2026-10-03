@@ -2,9 +2,9 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 
 const digest = (s) => createHash('sha256').update(s).digest();
 
-/** Autentikasi Bearer token statis; perbandingan constant-time. */
+/** Autentikasi Bearer token statis untuk otomasi (mis. n8n); perbandingan constant-time. Tanpa token = dinonaktifkan. */
 export function createTokenAuthenticator(token) {
-  if (!token) throw new Error('Admin token wajib diisi');
+  if (!token) return () => false;
   const expected = digest(token);
   return (req) => {
     const match = /^Bearer (.+)$/.exec(req.headers.authorization ?? '');

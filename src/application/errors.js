@@ -1,1 +1,1 @@
-export { ValidationError, NotFoundError, UpstreamError } from '../domain/errors.js';
+export { ValidationError, NotFoundError, UpstreamError, AuthenticationError, ConflictError, TooManyAttemptsError } from '../domain/errors.js';
