@@ -246,7 +246,7 @@ Mengganti komponen cukup menulis adapter baru dan mengubah `bootstrap.js` — us
 ## Pengujian
 
 ```bash
-npm test                                                   # 111 tes; 8 tes PostgreSQL otomatis dilewati
+npm test                                                   # 116 tes; 8 tes PostgreSQL otomatis dilewati
 TEST_DATABASE_URL=postgres://user:pass@localhost:5432/ragtest npm test   # + tes PostgreSQL/pgvector
 ```
 
@@ -307,3 +307,11 @@ Di **Tambah knowledge** ada kolom **"Atau ambil dari alamat web (URL)"**.
 - Port dibatasi 80, 443, 8080, 8443; URL berisi `user:password@` ditolak; tanpa cookie dan kredensial.
 - Ukuran dibatasi juga **setelah dekompresi** (gzip/br), dan permintaan ikut dibatalkan bila klien memutus koneksi.
 - Bila perlu mengambil halaman dari **jaringan internal** (mis. wiki perusahaan), setel `URL_IMPORT_ALLOW_PRIVATE=true` di `.env`. Itu mematikan semua pengaman di atas, jadi aktifkan hanya bila **semua admin dipercaya**.
+
+## Saran pertanyaan di layar awal chat
+
+Tombol saran di layar awal chat **tidak lagi tetap**:
+- **Bawaan (otomatis):** dibuat dari **judul knowledge yang aktif** ("Ceritakan tentang <judul>", maks 4), jadi langsung mengikuti knowledge yang ditambah, diganti, atau dinonaktifkan, dalam bahasa antarmuka (ID/EN) yang dipilih pengunjung. Tanpa knowledge aktif, tidak ada tombol saran.
+- **Diatur admin:** di **Admin → Pengaturan asisten → Saran pertanyaan** (satu per baris, maks 6 baris, 120 karakter per baris). Bila terisi, itu yang dipakai; kosongkan untuk kembali ke otomatis.
+- **Buat dengan AI:** tombol itu meminta LLM menyusun 4 pertanyaan dari knowledge aktif (judul + awal isinya), dalam bahasa yang sama dengan knowledge. Hasilnya hanya **diisikan ke kolom** untuk Anda periksa; baru berlaku setelah klik **Simpan pengaturan**. Memerlukan LLM aktif (`LLM_BASE_URL`); tanpa LLM muncul pesan petunjuk.
+- API: `GET /api/suggestions` (publik) dan `POST /api/admin/assistant/suggest` (sesi login). Daftar saran ikut tersimpan di pengaturan asisten (PostgreSQL atau `settings.json`).

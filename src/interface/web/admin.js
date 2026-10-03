@@ -397,6 +397,7 @@ async function loadAssistant() {
     $('asName').value = a.name;
     $('asStyle').value = a.style;
     $('asAbout').value = a.about;
+    $('asSuggestions').value = (a.suggestions ?? []).join('\n');
     lastAssistant = a;
     renderAssistantMeta();
   } catch (err) {
@@ -409,7 +410,7 @@ $('assistantForm').addEventListener('submit', async (e) => {
   $('asSave').disabled = true;
   $('asError').textContent = '';
   try {
-    await api.saveAssistant({ name: $('asName').value, style: $('asStyle').value, about: $('asAbout').value });
+    await api.saveAssistant({ name: $('asName').value, style: $('asStyle').value, about: $('asAbout').value, suggestions: $('asSuggestions').value });
     toast(t('as.saved'));
     await loadAssistant();
   } catch (err) {
@@ -417,6 +418,22 @@ $('assistantForm').addEventListener('submit', async (e) => {
     else $('asError').textContent = err.message;
   } finally {
     $('asSave').disabled = false;
+  }
+});
+
+$('asGenerate').addEventListener('click', async () => {
+  $('asGenerate').disabled = true;
+  $('asError').textContent = '';
+  $('asMeta').textContent = t('as.generating');
+  try {
+    const { suggestions } = await api.suggestAssistant();
+    $('asSuggestions').value = suggestions.join('\n');
+    toast(t('as.generated'));
+  } catch (err) {
+    if (err.status === 401) sessionExpired(); else $('asError').textContent = err.message;
+  } finally {
+    renderAssistantMeta();
+    $('asGenerate').disabled = false;
   }
 });
 

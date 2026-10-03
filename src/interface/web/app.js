@@ -1,5 +1,5 @@
 import { api } from './api.js';
-import { initI18n } from './i18n.js';
+import { initI18n, onLanguageChange, t } from './i18n.js';
 
 initI18n();
 
@@ -70,7 +70,25 @@ async function send(question) {
 form.addEventListener('submit', (e) => { e.preventDefault(); send(input.value); });
 input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } });
 input.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = `${input.scrollHeight}px`; });
-document.querySelectorAll('.suggestions button').forEach((b) => b.addEventListener('click', () => send(b.textContent)));
+
+// Saran pertanyaan di layar awal: yang diatur admin; bila belum ada, dibuat dari judul knowledge aktif.
+let suggestionData = { suggestions: [], topics: [] };
+function renderSuggestions() {
+  const box = $('suggestions');
+  if (!box) return;
+  const items = suggestionData.suggestions.length
+    ? suggestionData.suggestions
+    : suggestionData.topics.slice(0, 4).map((title) => t('chat.aboutTopic', { title }));
+  box.replaceChildren(...items.map((text) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = text;
+    b.addEventListener('click', () => send(text));
+    return b;
+  }));
+}
+onLanguageChange(renderSuggestions);
+api.suggestions().then((data) => { suggestionData = data; renderSuggestions(); }).catch(() => {});
 $('clear').addEventListener('click', async () => {
   await api.clear(sessionId).catch(() => {});
   location.reload();

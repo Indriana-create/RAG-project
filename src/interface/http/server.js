@@ -34,6 +34,7 @@ export function createServer({
     route('GET', '/api/health', async () => ({ status: 200, body: { ok: true } })),
     route('POST', '/api/chat', chat.chat),
     route('POST', '/api/chat/stream', chat.chatStream),
+    route('GET', '/api/suggestions', chat.suggestions),
     route('GET', '/api/history/:sessionId', chat.history),
     route('DELETE', '/api/history/:sessionId', chat.clear),
 
@@ -51,6 +52,7 @@ export function createServer({
 
     route('GET', '/api/admin/assistant', adminAssistant.get, { auth: 'session' }),
     route('PUT', '/api/admin/assistant', adminAssistant.update, { auth: 'session' }),
+    route('POST', '/api/admin/assistant/suggest', adminAssistant.suggest, { auth: 'session' }),
 
     route('POST', '/api/admin/search', adminKnowledge.search, { auth: 'admin' }),
     route('GET', '/api/admin/knowledge', adminKnowledge.list, { auth: 'admin' }),

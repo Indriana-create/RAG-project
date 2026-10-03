@@ -89,6 +89,9 @@
           <textarea id="asStyle" rows="4" maxlength="1000" placeholder='Mis. Selalu ramah. Sapa pengguna dengan "Kak". Pahami dan jawab dalam bahasa apa pun yang dipakai pengguna.' data-i18n-placeholder="as.stylePh"></textarea>
           <label for="asAbout" data-i18n="as.about">Tentang asisten (hanya disebut bila pengguna menanyakannya)</label>
           <textarea id="asAbout" rows="4" maxlength="2000" placeholder="Mis. Anda ditenagai model Qwen3.5-9B yang berjalan di server perusahaan, dan dapat berbahasa Indonesia, Inggris, serta bahasa lain." data-i18n-placeholder="as.aboutPh"></textarea>
+          <label for="asSuggestions" data-i18n="as.suggestions">Saran pertanyaan di layar awal chat (satu per baris, maks 6)</label>
+          <textarea id="asSuggestions" rows="5" maxlength="1000" data-i18n-placeholder="as.suggestionsPh" placeholder="Kosongkan agar saran dibuat otomatis dari judul knowledge."></textarea>
+          <div class="inline-actions"><button class="ghost sm" type="button" id="asGenerate" data-i18n="as.generate">Buat dengan AI</button></div>
           <p class="muted" data-i18n-html="as.hint">Isian ini mengatur <strong>perilaku</strong> asisten dan berlaku langsung tanpa restart. Informasi layanan atau produk (jam buka, harga, kebijakan) tetap diisi di <strong>Knowledge</strong> di atas, bukan di sini.</p>
           <p id="asMeta" class="muted"></p>
           <p id="asError" class="error" role="alert"></p>

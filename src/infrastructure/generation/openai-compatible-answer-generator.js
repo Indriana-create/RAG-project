@@ -30,6 +30,19 @@ export class OpenAiCompatibleAnswerGenerator {
     });
   }
 
+  /** Satu permintaan teks bebas (di luar alur chat), mis. membuat saran pertanyaan. */
+  async complete({ system, user, maxTokens = 300, temperature = 0.4, signal }) {
+    const res = await postJson(joinUrl(this.baseUrl, '/chat/completions'), {
+      headers: authHeaders(this.apiKey),
+      body: { ...this.extraBody, model: this.model, messages: [{ role: 'system', content: system }, { role: 'user', content: user }], temperature, max_tokens: maxTokens, stream: false },
+      signal, timeoutMs: this.timeoutMs, fetchImpl: this.fetchImpl, what: 'LLM',
+    });
+    const raw = (await res.json()).choices?.[0]?.message?.content;
+    const text = typeof raw === 'string' ? stripThinking(raw) : '';
+    if (!text) throw new UpstreamError('LLM tidak mengembalikan jawaban');
+    return text;
+  }
+
   async generate(input) {
     const data = await (await this.#request(input, false)).json();
     const raw = data.choices?.[0]?.message?.content;

@@ -73,3 +73,4 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
 .crawl .item input { width: 18px; height: 18px; }
 .crawl .item .info p { overflow-wrap: anywhere; }
 #crawlDialog .list { max-height: 50vh; overflow: auto; margin: 12px 0; }
+.inline-actions { margin: 6px 0 10px; }

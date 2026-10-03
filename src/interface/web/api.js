@@ -50,6 +50,7 @@ export const api = {
     if (!message) throw new Error(t('chat.connectionLost'));
     return message;
   },
+  suggestions: () => request('/api/suggestions'),
   history: (sessionId) => request(`/api/history/${sessionId}`),
   clear: (sessionId) => request(`/api/history/${sessionId}`, { method: 'DELETE' }),
 };
