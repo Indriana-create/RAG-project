@@ -11,6 +11,14 @@ npm test
 
 Tanpa konfigurasi, bot memakai jawaban *ekstraktif* offline. Untuk jawaban LLM, salin `.env.example`, isi `ANTHROPIC_API_KEY`, lalu jalankan `node --env-file=.env src/main.js`.
 
+### Dengan Docker
+
+```bash
+docker compose up --build    # http://localhost:3000
+```
+
+Untuk jawaban LLM: `ANTHROPIC_API_KEY=sk-... docker compose up --build` (PowerShell: `$env:ANTHROPIC_API_KEY="sk-..."; docker compose up --build`). Folder `knowledge/` dipasang sebagai volume; setelah mengubah dokumen, jalankan `docker compose restart`.
+
 Tambah pengetahuan dengan menaruh file `.md`/`.txt` ke `knowledge/` lalu restart.
 
 ## Arsitektur

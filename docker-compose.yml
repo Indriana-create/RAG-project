@@ -1,0 +1,13 @@
+services:
+  rag:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      # Opsional: kosongkan untuk mode ekstraktif offline.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-5-5}
+    volumes:
+      # Edit dokumen tanpa rebuild; restart container untuk mengindeks ulang.
+      - ./knowledge:/app/knowledge:ro
+    restart: unless-stopped
