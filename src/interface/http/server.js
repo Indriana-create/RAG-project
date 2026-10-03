@@ -2,7 +2,7 @@ import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import {
-  AuthenticationError, ConflictError, NotFoundError, TooManyAttemptsError, UpstreamError, ValidationError,
+  AuthenticationError, ConflictError, ForbiddenError, NotFoundError, TooManyAttemptsError, UpstreamError, ValidationError,
 } from '../../application/errors.js';
 import {
   SESSION_COOKIE, clearedSessionCookie, clientIp, isCrossSiteWrite, isSecureRequest, parseCookies, sessionCookie,
@@ -34,12 +34,14 @@ export function createServer({
     route('DELETE', '/api/history/:sessionId', chat.clear),
 
     route('POST', '/api/admin/login', adminAccounts.login),
+    route('POST', '/api/admin/register', adminAccounts.register),
     route('POST', '/api/admin/logout', adminAccounts.logout),
     route('GET', '/api/admin/me', adminAccounts.me, { auth: 'session' }),
     route('POST', '/api/admin/password', adminAccounts.changePassword, { auth: 'session' }),
     route('GET', '/api/admin/users', adminAccounts.users, { auth: 'session' }),
     route('POST', '/api/admin/users', adminAccounts.createUser, { auth: 'session' }),
     route('DELETE', '/api/admin/users/:id', adminAccounts.removeUser, { auth: 'session' }),
+    route('POST', '/api/admin/users/:id/approve', adminAccounts.approveUser, { auth: 'session' }),
     route('POST', '/api/admin/users/:id/password', adminAccounts.resetPassword, { auth: 'session' }),
 
     route('GET', '/api/admin/assistant', adminAssistant.get, { auth: 'session' }),
@@ -102,6 +104,7 @@ function toHttpError(err) {
   if (err instanceof ValidationError) return { status: 400, message: err.message };
   if (err instanceof NotFoundError) return { status: 404, message: err.message };
   if (err instanceof AuthenticationError) return { status: 401, message: err.message };
+  if (err instanceof ForbiddenError) return { status: 403, message: err.message };
   if (err instanceof ConflictError) return { status: 409, message: err.message };
   if (err instanceof TooManyAttemptsError) return { status: 429, message: err.message, headers: { 'retry-after': String(err.retryAfterSeconds) } };
   if (err.name === 'AbortError') return { status: 499, message: 'Permintaan dibatalkan' };
@@ -140,7 +143,13 @@ async function serveStatic(res, root, pathname) {
   if (!file.startsWith(root + path.sep)) return send(res, 403, { error: 'Dilarang' });
   try {
     const data = await readFile(file);
-    res.writeHead(200, { 'content-type': MIME[path.extname(file)] ?? 'application/octet-stream', 'x-content-type-options': 'nosniff' }).end(data);
+    // no-store: Cloudflare/peramban tidak boleh menyajikan halaman versi lama setelah aplikasi diperbarui
+    // (HTML baru dengan JS lama membuat form tampak "tidak menyimpan").
+    res.writeHead(200, {
+      'content-type': MIME[path.extname(file)] ?? 'application/octet-stream',
+      'x-content-type-options': 'nosniff',
+      'cache-control': 'no-store',
+    }).end(data);
   } catch {
     send(res, 404, { error: 'Tidak ditemukan' });
   }

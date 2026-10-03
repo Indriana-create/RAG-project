@@ -9,6 +9,7 @@ const toUser = (row) => createAdminUser({
   tokenVersion: row.token_version,
   createdAt: row.created_at.toISOString(),
   lastLoginAt: row.last_login_at ? row.last_login_at.toISOString() : null,
+  status: row.status,
 });
 
 /** Adapter AdminUserRepository di atas PostgreSQL (menerima `pg.Pool`). */
@@ -30,11 +31,11 @@ export class PostgresAdminUserRepository {
   async save(user) {
     try {
       await this.pool.query(
-        `INSERT INTO admin_users (id, username, display_name, password_hash, token_version, created_at, last_login_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `INSERT INTO admin_users (id, username, display_name, password_hash, token_version, created_at, last_login_at, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          ON CONFLICT (id) DO UPDATE SET username = EXCLUDED.username, display_name = EXCLUDED.display_name,
-           password_hash = EXCLUDED.password_hash, token_version = EXCLUDED.token_version, last_login_at = EXCLUDED.last_login_at`,
-        [user.id, user.username, user.displayName, user.passwordHash, user.tokenVersion, user.createdAt, user.lastLoginAt]);
+           password_hash = EXCLUDED.password_hash, token_version = EXCLUDED.token_version, last_login_at = EXCLUDED.last_login_at, status = EXCLUDED.status`,
+        [user.id, user.username, user.displayName, user.passwordHash, user.tokenVersion, user.createdAt, user.lastLoginAt, user.status]);
     } catch (err) {
       if (err.code === '23505') throw new ConflictError(`Username "${user.username}" sudah dipakai`);
       throw err;

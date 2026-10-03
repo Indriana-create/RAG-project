@@ -2,14 +2,22 @@ const text = (value) => (typeof value === 'string' ? value : undefined);
 
 /** Controller akun admin: login/logout, profil, ubah password, kelola akun. */
 export class AdminAccountController {
-  constructor({ loginAdmin, changeOwnPassword, listAdminUsers, createAdminUser, deleteAdminUser, resetAdminPassword }) {
-    Object.assign(this, { loginAdmin, changeOwnPassword, listAdminUsers, createAdminUser, deleteAdminUser, resetAdminPassword });
+  constructor({ loginAdmin, changeOwnPassword, listAdminUsers, createAdminUser, deleteAdminUser, resetAdminPassword, registerAccount, approveAdminUser }) {
+    Object.assign(this, { loginAdmin, changeOwnPassword, listAdminUsers, createAdminUser, deleteAdminUser, resetAdminPassword, registerAccount, approveAdminUser });
   }
 
   login = async ({ body, ip }) => {
     const { user, token } = await this.loginAdmin.execute({ username: text(body.username), password: text(body.password), ip });
     return { status: 200, body: { user }, session: { token } };
   };
+
+  /** Pendaftaran terbuka: akun baru berstatus menunggu sampai disetujui admin. Tidak ada sesi yang dibuat. */
+  register = async ({ body, ip }) => ({
+    status: 202,
+    body: await this.registerAccount.execute({ username: text(body.username), displayName: text(body.displayName), password: text(body.password), ip }),
+  });
+
+  approveUser = async ({ params }) => ({ status: 200, body: await this.approveAdminUser.execute({ id: params.id }) });
 
   logout = async () => ({ status: 204, session: 'clear' });
 

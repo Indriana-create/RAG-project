@@ -22,6 +22,8 @@ export async function migrateAdminUsers(pool) {
       created_at    timestamptz NOT NULL DEFAULT now(),
       last_login_at timestamptz
     )`);
+  // Akun yang sudah ada tetap aktif; hanya pendaftaran baru yang berstatus 'pending'.
+  await pool.query("ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'active'");
 }
 
 export async function migrateSettings(pool) {

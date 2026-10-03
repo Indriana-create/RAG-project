@@ -17,6 +17,8 @@ export function createAdminApi() {
     // akun
     login: (username, password) => request('/api/admin/login', json('POST', { username, password })).then((r) => r.user),
     logout: () => request('/api/admin/logout', json('POST')),
+    register: (data) => request('/api/admin/register', json('POST', data)),
+    approveUser: (id) => request(`${user(id)}/approve`, json('POST')),
     me: () => request('/api/admin/me').then((r) => r.user),
     changePassword: (currentPassword, newPassword) => request('/api/admin/password', json('POST', { currentPassword, newPassword })).then((r) => r.user),
     users: () => request('/api/admin/users').then((r) => r.items),

@@ -371,3 +371,111 @@ test('halaman admin dilayani dan tidak menyimpan kredensial di penyimpanan brows
     assert.doesNotMatch(js, /Authorization|Bearer/);
   } finally { await t.stop(); }
 });
+
+// ---------- Pendaftaran & persetujuan ----------
+const NEW = { username: 'sari', displayName: 'Sari', password: 'password-sari-1' };
+
+test('pendaftaran: akun menunggu, tidak bisa login, setelah disetujui punya hak admin penuh', async () => {
+  const t = await start();
+  try {
+    const anon = t.client();
+    const reg = await anon('POST', '/api/admin/register', NEW);
+    assert.equal(reg.status, 202);
+    assert.equal(reg.json.status, 'pending');
+    assert.equal(reg.headers.get('set-cookie'), null); // mendaftar tidak membuat sesi
+    assert.doesNotMatch(reg.text, /passwordHash|scrypt/);
+
+    // Username kembar, password lemah, dan username tak valid ditolak dengan jelas.
+    assert.equal((await t.client()('POST', '/api/admin/register', NEW)).status, 409);
+    assert.equal((await t.client()('POST', '/api/admin/register', { ...NEW, username: 'budi', password: 'pendek' })).status, 400);
+    assert.equal((await t.client()('POST', '/api/admin/register', { ...NEW, username: 'bu di' })).status, 400);
+
+    // Password benar tetapi belum disetujui → 403 dengan pesan jelas; password salah tetap 401 biasa.
+    const pending = await t.client()('POST', '/api/admin/login', { username: 'sari', password: NEW.password });
+    assert.equal(pending.status, 403);
+    assert.match(pending.json.error, /menunggu persetujuan/);
+    assert.equal(pending.headers.get('set-cookie'), null);
+    assert.equal((await t.client()('POST', '/api/admin/login', { username: 'sari', password: 'salah-salah' })).status, 401);
+
+    // Admin melihat antrean, lalu menyetujui.
+    const { c: admin } = await t.login();
+    const list = (await admin('GET', '/api/admin/users')).json.items;
+    const sari = list.find((u) => u.username === 'sari');
+    assert.equal(sari.status, 'pending');
+    assert.equal(list.find((u) => u.username === 'admin').status, 'active');
+    assert.equal((await admin('POST', `/api/admin/users/${sari.id}/approve`)).json.status, 'active');
+    assert.equal((await admin('POST', '/api/admin/users/tidak-ada/approve')).status, 404);
+
+    // Sekarang sari bisa login dan mengelola KNOWLEDGE YANG SAMA dengan admin.
+    const { c: sariClient, res } = await t.login('sari', NEW.password);
+    assert.equal(res.status, 200);
+    const created = await sariClient('POST', '/api/admin/knowledge', { title: 'Dari Sari', content: 'Isi dari akun sari.' });
+    assert.equal(created.status, 201);
+    const seenByAdmin = (await admin('GET', '/api/admin/knowledge')).json.items.map((d) => d.title);
+    assert.ok(seenByAdmin.includes('Dari Sari'));
+    assert.equal((await sariClient('GET', '/api/admin/users')).status, 200); // hak admin: bisa kelola akun
+  } finally { await t.stop(); }
+});
+
+test('pendaftaran: akun menunggu tidak punya sesi, bisa ditolak (hapus), dan tidak dihitung sebagai admin terakhir', async () => {
+  const t = await start();
+  try {
+    await t.client()('POST', '/api/admin/register', NEW);
+    const { c: admin } = await t.login();
+    const users = (await admin('GET', '/api/admin/users')).json.items;
+    const sari = users.find((u) => u.username === 'sari');
+    const me = users.find((u) => u.username === 'admin');
+
+    assert.equal((await admin('DELETE', `/api/admin/users/${sari.id}`)).status, 204); // tolak pendaftaran
+    assert.equal((await admin('DELETE', `/api/admin/users/${me.id}`)).status, 400);    // diri sendiri / admin aktif terakhir
+
+    // Admin aktif terakhir tidak bisa dihapus walau ada akun menunggu.
+    await t.client()('POST', '/api/admin/register', NEW);
+    const waiting = (await admin('GET', '/api/admin/users')).json.items.find((u) => u.username === 'sari');
+    const { c: other } = await t.login(); // sesi kedua milik admin yang sama
+    assert.equal((await other('DELETE', `/api/admin/users/${me.id}`)).status, 400);
+    assert.equal((await admin('GET', '/api/admin/users')).json.items.some((u) => u.id === waiting.id), true);
+  } finally { await t.stop(); }
+});
+
+test('pendaftaran: dibatasi per alamat IP dan memerlukan permintaan satu-situs', async () => {
+  const t = await start();
+  try {
+    const anon = t.client();
+    for (let i = 0; i < 5; i += 1) {
+      assert.equal((await anon('POST', '/api/admin/register', { username: `user${i}`, password: 'password-bagus-1' })).status, 202);
+    }
+    const blocked = await anon('POST', '/api/admin/register', { username: 'user9', password: 'password-bagus-1' });
+    assert.equal(blocked.status, 429);
+    assert.match(blocked.json.error, /pendaftaran/i);
+    assert.ok(Number(blocked.headers.get('retry-after')) > 0);
+
+    const cross = await t.client()('POST', '/api/admin/register', { username: 'lain', password: 'password-bagus-1' }, { 'sec-fetch-site': 'cross-site' });
+    assert.equal(cross.status, 403);
+  } finally { await t.stop(); }
+});
+
+test('seed admin: akun menunggu tidak dianggap admin; migrasi PostgreSQL memberi status aktif pada akun lama', async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'rag-seed-'));
+  try {
+    const repo = new JsonFileAdminUserRepository(path.join(dir, 'u.json'));
+    await repo.save(createAdminUser({ id: '1', username: 'sari', passwordHash: 'h', createdAt: '2026-01-01', status: 'pending' }));
+    const { SeedAdminUser } = await import('../src/application/use-cases/admin-auth.js');
+    const seeded = await new SeedAdminUser({ users: repo, hasher: fastHasher, newId: () => '2', now: () => new Date() }).execute({ password: 'password-awal-1' });
+    assert.equal(seeded.created, true);
+    assert.equal((await repo.getByUsername('admin')).status, 'active');
+    assert.equal(createAdminUser({ id: '3', username: 'lama', passwordHash: 'h', createdAt: 'x' }).status, 'active'); // data lama tanpa status
+    assert.throws(() => createAdminUser({ id: '3', username: 'lama', passwordHash: 'h', createdAt: 'x', status: 'aneh' }), ValidationError);
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});
+
+test('berkas statis tidak boleh di-cache (mencegah Cloudflare menyajikan JS lama dengan HTML baru)', async () => {
+  const t = await start();
+  try {
+    for (const file of ['/', '/admin.html', '/admin.js', '/app.js', '/styles.css']) {
+      const res = await fetch(t.base + file);
+      assert.equal(res.status, 200, file);
+      assert.equal(res.headers.get('cache-control'), 'no-store', file);
+    }
+  } finally { await t.stop(); }
+});

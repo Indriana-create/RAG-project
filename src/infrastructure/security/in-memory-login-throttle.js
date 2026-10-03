@@ -1,9 +1,10 @@
 const DEFAULT_RULES = {
   u: { max: 5, windowMs: 5 * 60_000, lockMs: 5 * 60_000 },   // per akun
   ip: { max: 30, windowMs: 5 * 60_000, lockMs: 5 * 60_000 }, // per alamat IP
+  reg: { max: 5, windowMs: 60 * 60_000, lockMs: 60 * 60_000 }, // pendaftaran akun per alamat IP
 };
 
-/** Adapter LoginThrottle di memori. Kunci berawalan `u:` (akun) atau `ip:` (alamat). */
+/** Adapter LoginThrottle di memori. Kunci berawalan `u:` (akun), `ip:` (alamat), atau `reg:` (pendaftaran). */
 export class InMemoryLoginThrottle {
   #entries = new Map();
 

@@ -172,7 +172,8 @@ Halaman `/admin.html` memakai **akun per orang** (username + password), bukan sa
 - **Akun pertama** dibuat otomatis saat aplikasi pertama kali jalan dengan `ADMIN_USERNAME` (bawaan `admin`) dan `ADMIN_PASSWORD`. Tanpa `ADMIN_PASSWORD`, password acak dicetak **sekali** di log. Setelah akun ada, kedua variabel itu **diabaikan**: hapus `ADMIN_PASSWORD` dari `.env` setelah login pertama.
 - Siapa yang sedang login tampil di bagian atas halaman ("Masuk sebagai ...").
 - **Ubah password** sendiri lewat tombol di bagian atas (minimal 8 karakter, tidak wajib simbol). Perangkat lain yang masih login otomatis keluar.
-- **Kelola admin**: tambah akun, reset password akun lain, hapus akun. Tidak bisa menghapus diri sendiri atau akun terakhir.
+- **Daftar akun**: halaman login punya tautan "Daftar" (username, nama, password). Akun baru berstatus **menunggu** dan belum bisa login (pesan: "menunggu persetujuan admin") sampai akun admin yang ada menyetujuinya di **Kelola admin → Setujui** (atau **Tolak** untuk menghapus). Akun yang disetujui punya hak yang sama dengan admin lain: melihat dan mengubah knowledge yang sama, mengelola akun, dan pengaturan asisten. Pendaftaran dibatasi 5 per jam per alamat IP dan maksimal 50 akun menunggu. Akun yang sudah ada sebelum fitur ini otomatis berstatus aktif.
+- **Kelola admin**: setujui/tolak pendaftaran, tambah akun, reset password akun lain, hapus akun. Tidak bisa menghapus diri sendiri atau akun terakhir.
 - Password disimpan sebagai hash **scrypt** (tabel `admin_users` di PostgreSQL, atau `data/admin-users.json` tanpa database). Sesi berupa cookie `HttpOnly` + `SameSite=Lax` (+ `Secure` bila lewat HTTPS), bukan token yang disimpan di JavaScript.
 - **Pembatasan login**: 5 kali gagal untuk satu akun, atau 30 kali dari satu alamat IP, mengunci 5 menit.
 - Permintaan yang mengubah data dari situs lain ditolak (proteksi CSRF).
@@ -244,7 +245,7 @@ Mengganti komponen cukup menulis adapter baru dan mengubah `bootstrap.js` — us
 ## Pengujian
 
 ```bash
-npm test                                                   # 70 tes; 8 tes PostgreSQL otomatis dilewati
+npm test                                                   # 75 tes; 8 tes PostgreSQL otomatis dilewati
 TEST_DATABASE_URL=postgres://user:pass@localhost:5432/ragtest npm test   # + tes PostgreSQL/pgvector
 ```
 
@@ -257,3 +258,7 @@ TEST_DATABASE_URL=postgres://user:pass@localhost:5432/ragtest npm test   # + tes
 - Riwayat chat di memori (hilang saat restart).
 - Unggah hanya `.md`/`.txt` (PDF/DOCX belum didukung; bisa lewat n8n).
 - Belum ada reranker maupun hybrid search (kata + makna); kualitas bergantung pada model embedding dan `MIN_SCORE`. Kode/ID persis (mis. nomor produk) paling baik dicari dengan kata, bukan makna.
+
+## Cloudflare dan cache
+
+Server mengirim `Cache-Control: no-store` untuk semua halaman dan berkas statis, supaya Cloudflare tidak menyajikan `admin.js`/`app.js` versi lama setelah aplikasi diperbarui. Bila setelah update halaman terasa tidak berubah (mis. tombol Simpan hanya memuat ulang halaman), buka Cloudflare → **Caching → Configuration → Purge Everything**, lalu muat ulang peramban dengan Ctrl+Shift+R.

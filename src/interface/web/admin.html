@@ -29,6 +29,27 @@
         <p id="loginError" class="error" role="alert"></p>
         <button class="primary" type="submit" id="loginBtn">Masuk</button>
       </form>
+      <p class="switch muted">Belum punya akun? <button type="button" class="link" id="showRegister">Daftar</button></p>
+    </section>
+
+    <section id="register" class="card" hidden>
+      <h2>Daftar akun</h2>
+      <p class="muted">Setelah mendaftar, akun bisa dipakai setelah disetujui oleh admin. Akun yang disetujui dapat melihat dan mengubah knowledge yang sama.</p>
+      <form id="registerForm">
+        <label for="regUser">Username (3–32 karakter: huruf kecil, angka, titik, garis bawah, tanda hubung)</label>
+        <input id="regUser" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="32" required>
+        <label for="regDisplay">Nama tampilan (opsional)</label>
+        <input id="regDisplay" autocomplete="name" maxlength="60">
+        <label for="regPass">Password (minimal 8 karakter)</label>
+        <div class="pw">
+          <input id="regPass" type="password" autocomplete="new-password" minlength="8" maxlength="128" required>
+          <button type="button" class="ghost sm" data-toggle="regPass" aria-label="Tampilkan password">Lihat</button>
+        </div>
+        <p id="regError" class="error" role="alert"></p>
+        <p id="regOk" class="ok" role="status"></p>
+        <button class="primary" type="submit" id="regBtn">Daftar</button>
+      </form>
+      <p class="switch muted">Sudah punya akun? <button type="button" class="link" id="showLogin">Masuk</button></p>
     </section>
 
     <section id="panel" hidden>
@@ -42,7 +63,7 @@
         </div>
         <div class="who-actions">
           <button id="openPassword" class="ghost" type="button">Ubah password</button>
-          <button id="openUsers" class="ghost" type="button">Kelola admin</button>
+          <button id="openUsers" class="ghost" type="button">Kelola admin <span id="pendingCount" class="badge pending" hidden></span></button>
           <button id="logout" class="ghost" type="button">Keluar</button>
         </div>
       </div>

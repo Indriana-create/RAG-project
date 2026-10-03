@@ -23,9 +23,14 @@ export class ConflictError extends Error {
 
 /** Terlalu banyak percobaan login; coba lagi setelah `retryAfterSeconds`. */
 export class TooManyAttemptsError extends Error {
-  constructor(retryAfterSeconds) {
-    super('Terlalu banyak percobaan login. Coba lagi beberapa menit lagi.');
+  constructor(retryAfterSeconds, message = 'Terlalu banyak percobaan login. Coba lagi beberapa menit lagi.') {
+    super(message);
     this.name = 'TooManyAttemptsError';
     this.retryAfterSeconds = retryAfterSeconds;
   }
+}
+
+/** Kredensial benar tetapi akun belum boleh dipakai (mis. menunggu persetujuan admin). */
+export class ForbiddenError extends Error {
+  constructor(message = 'Tidak diizinkan') { super(message); this.name = 'ForbiddenError'; }
 }

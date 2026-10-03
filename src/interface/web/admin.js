@@ -18,6 +18,7 @@ function toast(message) {
 function showLogin(message = '') {
   me = null;
   $('panel').hidden = true;
+  $('register').hidden = true;
   $('login').hidden = false;
   $('loginError').textContent = message;
   $('loginUser').focus();
@@ -26,6 +27,7 @@ function showLogin(message = '') {
 function showPanel(user) {
   me = user;
   $('login').hidden = true;
+  $('register').hidden = true;
   $('panel').hidden = false;
   $('whoName').textContent = user.displayName;
   $('whoHandle').textContent = `@${user.username}`;
@@ -38,6 +40,7 @@ async function refresh() {
   try {
     render(await api.list());
     loadAssistant();
+    updatePendingCount();
   } catch (err) {
     if (err.status === 401) sessionExpired();
     else toast(err.message);
@@ -155,6 +158,33 @@ $('loginForm').addEventListener('submit', async (e) => {
   }
 });
 
+$('showRegister').addEventListener('click', () => {
+  $('login').hidden = true;
+  $('register').hidden = false;
+  $('regError').textContent = '';
+  $('regOk').textContent = '';
+  $('regUser').focus();
+});
+$('showLogin').addEventListener('click', () => showLogin());
+
+$('registerForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  $('regBtn').disabled = true;
+  $('regError').textContent = '';
+  $('regOk').textContent = '';
+  try {
+    const result = await api.register({ username: $('regUser').value, displayName: $('regDisplay').value, password: $('regPass').value });
+    $('registerForm').reset();
+    $('regOk').textContent = result.message;
+  } catch (err) {
+    $('regError').textContent = err.status === 429
+      ? `${err.message} (coba lagi dalam ${Math.max(1, Math.ceil(err.retryAfter / 60))} menit)`
+      : err.message;
+  } finally {
+    $('regBtn').disabled = false;
+  }
+});
+
 $('logout').addEventListener('click', async () => {
   await api.logout().catch(() => {});
   showLogin();
@@ -214,8 +244,16 @@ $('passwordForm').addEventListener('submit', async (e) => {
 });
 
 // ---------- Kelola akun admin ----------
+async function updatePendingCount() {
+  try {
+    const waiting = (await api.users()).filter((u) => u.status === 'pending').length;
+    $('pendingCount').hidden = waiting === 0;
+    $('pendingCount').textContent = `${waiting} menunggu`;
+  } catch { /* lencana hanya pelengkap */ }
+}
+
 async function renderUsers() {
-  const items = await api.users();
+  const items = (await api.users()).sort((a, b) => (b.status === 'pending') - (a.status === 'pending'));
   $('userList').replaceChildren(...items.map((u) => {
     const li = document.createElement('li');
     li.className = 'item';
@@ -233,18 +271,37 @@ async function renderUsers() {
       badge.textContent = 'Anda';
       h.append(badge);
     }
+    const pending = u.status === 'pending';
+    if (pending) {
+      const badge = document.createElement('span');
+      badge.className = 'badge pending';
+      badge.textContent = 'Menunggu persetujuan';
+      h.append(badge);
+    }
     const meta = document.createElement('p');
-    meta.textContent = u.lastLoginAt ? `Login terakhir ${new Date(u.lastLoginAt).toLocaleString('id-ID')}` : 'Belum pernah login';
+    meta.textContent = pending
+      ? `Mendaftar ${new Date(u.createdAt).toLocaleString('id-ID')}`
+      : (u.lastLoginAt ? `Login terakhir ${new Date(u.lastLoginAt).toLocaleString('id-ID')}` : 'Belum pernah login');
     info.append(h, meta);
     const controls = document.createElement('div');
     controls.className = 'controls';
-    if (u.id !== me.id) {
+    const failed = (err) => { if (err.status === 401) { $('usersDialog').close(); sessionExpired(); } else toast(err.message); };
+    if (pending) {
+      controls.append(
+        button('Setujui', 'primary', async () => {
+          try { await api.approveUser(u.id); toast(`@${u.username} disetujui`); await renderUsers(); updatePendingCount(); } catch (err) { failed(err); }
+        }),
+        button('Tolak', 'ghost danger', async () => {
+          if (!confirm(`Tolak dan hapus pendaftaran "${u.username}"?`)) return;
+          try { await api.removeUser(u.id); toast('Pendaftaran ditolak'); await renderUsers(); updatePendingCount(); } catch (err) { failed(err); }
+        }),
+      );
+    } else if (u.id !== me.id) {
       controls.append(
         button('Reset password', 'ghost', () => openPasswordDialog({ id: u.id, username: u.username })),
         button('Hapus', 'ghost danger', async () => {
           if (!confirm(`Hapus akun "${u.username}"? Akun itu langsung keluar dari semua perangkat.`)) return;
-          try { await api.removeUser(u.id); toast('Akun dihapus'); await renderUsers(); }
-          catch (err) { if (err.status === 401) { $('usersDialog').close(); sessionExpired(); } else toast(err.message); }
+          try { await api.removeUser(u.id); toast('Akun dihapus'); await renderUsers(); } catch (err) { failed(err); }
         }),
       );
     }
