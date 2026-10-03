@@ -24,6 +24,21 @@ docker compose --env-file .env up --build
 
 PowerShell tanpa `.env`: `$env:ADMIN_TOKEN="rahasia"; docker compose up --build`.
 
+### Di server dengan PostgreSQL/LLM yang hanya terbuka di loopback
+
+Bila PostgreSQL dan LLM di server itu dipublikasikan hanya ke `127.0.0.1` (mis. `-p 127.0.0.1:5434:5432` dan `-p 127.0.0.1:8100:8000`), kontainer lain **tidak bisa** menjangkaunya: port loopback host tidak terlihat dari jaringan bridge, dan pada jaringan bridge bawaan nama kontainer tidak bisa di-resolve. Pakai `docker-compose.server.yml`, yang menjalankan aplikasi dengan `network_mode: host` sehingga alamatnya cukup `127.0.0.1`:
+
+```bash
+# .env
+DATABASE_URL=postgres://rag_app:PASSWORD@127.0.0.1:5434/rag
+LLM_BASE_URL=http://127.0.0.1:8100/v1
+
+docker compose -f docker-compose.server.yml up -d --build
+docker compose -f docker-compose.server.yml logs -f rag
+```
+
+Aplikasi mendengarkan langsung di port host (`PORT`, bawaan 3000) pada semua antarmuka. Batasi dengan firewall, atau set `HOST=127.0.0.1` dan akses lewat reverse proxy / SSH tunnel (`ssh -L 3000:127.0.0.1:3000 user@server`).
+
 ## Konfigurasi (environment)
 
 Implementasi dipilih otomatis di `src/bootstrap.js` dari variabel berikut:

@@ -9,7 +9,7 @@ const env = {
   ...process.env,
   DATA_DIR: process.env.DATA_DIR ?? path.join(root, 'data'),
 };
-const { PORT = 3000, KNOWLEDGE_DIR = path.join(root, 'knowledge') } = env;
+const { PORT = 3000, HOST, KNOWLEDGE_DIR = path.join(root, 'knowledge') } = env;
 
 let adminToken = env.ADMIN_TOKEN;
 if (!adminToken) {
@@ -25,12 +25,15 @@ const { server, stats, seeded } = await buildApp({
   adminToken,
 });
 
-server.listen(PORT, () => {
+const onListening = () => {
   const { storage, retrieval, generator, minScore } = deps.description;
   console.log(`http://localhost:${PORT} — ${stats.documents} dokumen aktif, ${stats.chunks} chunk${seeded ? ` (${seeded} dokumen awal diimpor)` : ''}`);
   console.log(`Admin: http://localhost:${PORT}/admin.html`);
   console.log(`Penyimpanan: ${storage} | Pencarian: ${retrieval} (ambang ${minScore}) | Jawaban: ${generator}`);
-});
+};
+// HOST=127.0.0.1 membatasi akses ke mesin ini saja (mis. di belakang reverse proxy / SSH tunnel).
+if (HOST) server.listen(PORT, HOST, onListening);
+else server.listen(PORT, onListening);
 
 for (const signal of ['SIGINT', 'SIGTERM']) {
   process.once(signal, () => {
