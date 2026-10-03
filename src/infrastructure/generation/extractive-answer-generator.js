@@ -1,10 +1,12 @@
+import { noAnswerMessage } from '../../domain/fallback.js';
 import { splitSentences, tokenize } from '../../domain/text.js';
 
 /** Adapter AnswerGenerator offline: memilih kalimat paling relevan dari konteks (tanpa LLM). */
 export class ExtractiveAnswerGenerator {
   constructor({ maxSentences = 3 } = {}) { this.maxSentences = maxSentences; }
 
-  async generate({ question, contexts }) {
+  async generate({ question, contexts, topics = [] }) {
+    if (!contexts.length) return noAnswerMessage(topics);
     const q = new Set(tokenize(question));
     const ranked = contexts
       .flatMap((c) => splitSentences(c.text.replace(/^#+\s.*$/gm, '').replace(/[*_`>-]/g, '')).map((s) => ({ s })))

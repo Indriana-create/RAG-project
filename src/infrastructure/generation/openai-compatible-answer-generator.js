@@ -13,16 +13,16 @@ import { stripThinking, ThinkFilter } from '../llm/think-filter.js';
  * Blok `<think>…</think>` dibuang dari jawaban.
  */
 export class OpenAiCompatibleAnswerGenerator {
-  constructor({ baseUrl, model, apiKey, temperature = 0.2, maxTokens = 800, timeoutMs = 300_000, extraBody = {}, fetchImpl = fetch }) {
+  constructor({ baseUrl, model, apiKey, persona, temperature = 0.3, maxTokens = 800, timeoutMs = 300_000, extraBody = {}, fetchImpl = fetch }) {
     if (!baseUrl) throw new Error('LLM_BASE_URL wajib diisi');
     if (!model) throw new Error('LLM_MODEL wajib diisi');
-    Object.assign(this, { baseUrl, model, apiKey, temperature, maxTokens, timeoutMs, extraBody, fetchImpl });
+    Object.assign(this, { baseUrl, model, apiKey, persona, temperature, maxTokens, timeoutMs, extraBody, fetchImpl });
   }
 
   #request(input, stream) {
     return postJson(joinUrl(this.baseUrl, '/chat/completions'), {
       headers: authHeaders(this.apiKey),
-      body: { ...this.extraBody, model: this.model, messages: buildMessages(input), temperature: this.temperature, max_tokens: this.maxTokens, stream },
+      body: { ...this.extraBody, model: this.model, messages: buildMessages({ ...input, persona: this.persona }), temperature: this.temperature, max_tokens: this.maxTokens, stream },
       signal: input.signal,
       timeoutMs: this.timeoutMs,
       fetchImpl: this.fetchImpl,

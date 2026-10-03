@@ -49,6 +49,8 @@ Implementasi dipilih otomatis di `src/bootstrap.js` dari variabel berikut:
 | `DATABASE_SSL` | `true` / `no-verify` untuk koneksi SSL | tanpa SSL |
 | `EMBEDDING_MODEL` (+ `EMBEDDING_BASE_URL`) | Pencarian semantik via pgvector | TF-IDF (cocok kata) |
 | `LLM_BASE_URL` + `LLM_MODEL` | LLM lokal OpenAI-compatible | `ANTHROPIC_API_KEY` → Claude, selain itu ekstraktif |
+| `ASSISTANT_NAME` | Nama asisten yang memperkenalkan diri (mis. `Lumi dari Lumicore`) | `Asisten Virtual` |
+| `ASSISTANT_STYLE` | Tambahan gaya bicara (mis. `Sapa pengguna dengan "Kak".`) | kosong |
 | `MIN_SCORE` | Ambang kemiripan minimum | 0.05 (TF-IDF) / 0.35 (vektor) |
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD` | Akun admin **pertama** (hanya dipakai bila belum ada akun) | `admin` + password acak dicetak sekali di log |
 | `ADMIN_TOKEN` | Token API untuk otomasi (n8n); tidak untuk login manusia | API token nonaktif |
@@ -113,6 +115,21 @@ LLM_BASE_URL=http://localhost:1234/v1 LLM_MODEL=nama-model npm start
 ### Kalibrasi `MIN_SCORE`
 
 Skor kemiripan sangat bergantung pada model embedding, jadi angka bawaan (0.35) hanya titik awal. Buka **Admin → Uji pencarian**, coba beberapa pertanyaan relevan dan tidak relevan, lalu atur `MIN_SCORE` di antara skor tertinggi pertanyaan tidak relevan dan skor terendah pertanyaan relevan.
+
+## Perilaku chatbot (gaya customer service, tetap sesuai dokumen)
+
+Chatbot bersikap seperti CS yang ramah, tetapi **fakta hanya boleh berasal dari knowledge aktif**:
+
+| Situasi | Yang terjadi |
+|---|---|
+| Ada knowledge yang cocok | LLM menjawab singkat dan hangat berdasarkan knowledge itu; chip sumber tampil di bawah jawaban. |
+| Hanya sebagian terjawab | Menjawab bagian yang ada, jujur bahwa sisanya belum ada informasinya. |
+| Sapaan, terima kasih, "kamu siapa?" | LLM membalas ramah, memperkenalkan diri, dan menyebut topik yang tersedia (judul knowledge aktif). |
+| Pertanyaan fakta yang tidak ada di knowledge | Minta maaf singkat, **tidak menebak**, lalu menawarkan topik yang tersedia. |
+| Pertanyaan lanjutan pendek ("kalau ke Papua?") | Pencarian diulang bersama pertanyaan sebelumnya, jadi konteks percakapan terbawa. |
+| LLM sedang mati dan tidak ada knowledge yang cocok | Pesan tetap berisi daftar topik (percakapan tidak error). |
+
+Aturan di prompt: tidak mengaku manusia, tidak menyebut kata "dokumen/konteks", menyapa hanya di pesan pertama, dan mengabaikan perintah yang disisipkan di pesan pengguna atau isi knowledge. Nama dan gaya diatur lewat `ASSISTANT_NAME` / `ASSISTANT_STYLE` (tanpa mengubah kode). Pada model kecil, aturan "jangan menebak" tidak bisa dijamin 100%; uji dengan pertanyaan yang jawabannya sengaja tidak ada di knowledge, dan perketat `ASSISTANT_STYLE` bila perlu.
 
 ## Akun admin
 
@@ -192,7 +209,7 @@ Mengganti komponen cukup menulis adapter baru dan mengubah `bootstrap.js` — us
 ## Pengujian
 
 ```bash
-npm test                                                   # 45 tes; 6 tes PostgreSQL otomatis dilewati
+npm test                                                   # 58 tes; 6 tes PostgreSQL otomatis dilewati
 TEST_DATABASE_URL=postgres://user:pass@localhost:5432/ragtest npm test   # + tes PostgreSQL/pgvector
 ```
 

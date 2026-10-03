@@ -142,12 +142,14 @@ test('bootstrap penuh: PostgreSQL + pgvector + LLM lokal (streaming) lewat HTTP'
     assert.equal(events.at(-1).type, 'done');
     assert.equal(llm.state.requests.at(-1).auth, 'Bearer lokal');
 
-    // dinonaktifkan → tidak ada sumber, tanpa memanggil LLM
+    // dinonaktifkan → tidak ada sumber; LLM dipanggil dalam mode ketat dan diberi daftar topik yang MASIH aktif
     await call('PATCH', `/api/admin/knowledge/${created.id}`, { enabled: false });
-    const before = llm.state.requests.filter((r) => r.url.endsWith('/chat/completions')).length;
     const off = await stream('berapa lama garansi produk?');
     assert.deepEqual(off[0].sources, []);
-    assert.equal(llm.state.requests.filter((r) => r.url.endsWith('/chat/completions')).length, before);
+    const strict = llm.state.requests.filter((r) => r.url.endsWith('/chat/completions')).at(-1).body.messages[0].content;
+    assert.match(strict, /KONDISI SAAT INI: tidak ada informasi resmi/);
+    assert.match(strict, /- Pengiriman & Pelacakan/);
+    assert.doesNotMatch(strict, /- Garansi\n/);
 
     // validasi di jalur stream tetap berupa JSON 400
     assert.equal((await call('POST', '/api/chat/stream', { sessionId: 's1', question: ' ' }, false)).status, 400);

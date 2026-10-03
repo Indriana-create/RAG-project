@@ -44,9 +44,15 @@
  * @typedef {Object} Embedder
  * @property {(texts: string[], options?: {signal?: AbortSignal}) => Promise<number[][]>} embed
  *
+ * @typedef {{question: string, contexts: Chunk[], history: Array<{role:string,content:string}>, topics: string[], signal?: AbortSignal}} AnswerInput
+ * `contexts` boleh kosong (tidak ada informasi yang cocok); `topics` berisi judul knowledge aktif saat itu.
+ *
  * @typedef {Object} AnswerGenerator
- * @property {(input: {question: string, contexts: Chunk[], history: Array<{role:string,content:string}>, signal?: AbortSignal}) => Promise<string>} generate
- * @property {(input: {question: string, contexts: Chunk[], history: Array<{role:string,content:string}>, signal?: AbortSignal}) => AsyncIterable<string>} [stream] opsional: token demi token
+ * @property {(input: AnswerInput) => Promise<string>} generate
+ * @property {(input: AnswerInput) => AsyncIterable<string>} [stream] opsional: token demi token
+ *
+ * @typedef {Object} TopicProvider
+ * @property {() => Promise<string[]>} titles judul knowledge yang aktif
  *
  * @typedef {Object} ChatHistoryRepository
  * @property {(sessionId: string, message: object) => Promise<void>} append

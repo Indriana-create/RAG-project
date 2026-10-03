@@ -12,6 +12,11 @@ import { AnthropicAnswerGenerator } from './infrastructure/generation/anthropic-
 import { OpenAiCompatibleAnswerGenerator } from './infrastructure/generation/openai-compatible-answer-generator.js';
 import { OpenAiCompatibleEmbedder } from './infrastructure/embedding/openai-compatible-embedder.js';
 
+const personaFrom = (env) => ({
+  name: env.ASSISTANT_NAME?.trim() || 'Asisten Virtual',
+  style: env.ASSISTANT_STYLE?.trim() || '',
+});
+
 const DEFAULT_MIN_SCORE = { tfidf: 0.05, vector: 0.35 };
 
 const parseExtraBody = (raw) => {
@@ -77,6 +82,7 @@ export async function createDependencies(env, { logger = console } = {}) {
     retriever = new TfidfRetriever();
   }
 
+  const persona = personaFrom(env);
   let answerGenerator;
   let generatorName;
   if (env.LLM_BASE_URL) {
@@ -84,6 +90,7 @@ export async function createDependencies(env, { logger = console } = {}) {
       baseUrl: env.LLM_BASE_URL,
       model: env.LLM_MODEL,
       apiKey: env.LLM_API_KEY,
+      persona,
       temperature: env.LLM_TEMPERATURE === undefined || env.LLM_TEMPERATURE === '' ? undefined : Number(env.LLM_TEMPERATURE),
       maxTokens: Number(env.LLM_MAX_TOKENS) || undefined,
       timeoutMs: Number(env.LLM_TIMEOUT_MS) || undefined,
@@ -91,7 +98,7 @@ export async function createDependencies(env, { logger = console } = {}) {
     });
     generatorName = `LLM lokal (${env.LLM_MODEL} @ ${env.LLM_BASE_URL})`;
   } else if (env.ANTHROPIC_API_KEY) {
-    answerGenerator = new AnthropicAnswerGenerator({ apiKey: env.ANTHROPIC_API_KEY, model: env.ANTHROPIC_MODEL || 'claude-sonnet-5-5' });
+    answerGenerator = new AnthropicAnswerGenerator({ apiKey: env.ANTHROPIC_API_KEY, model: env.ANTHROPIC_MODEL || 'claude-sonnet-5-5', persona });
     generatorName = 'Claude API';
   } else {
     answerGenerator = new ExtractiveAnswerGenerator();
@@ -112,6 +119,7 @@ export async function createDependencies(env, { logger = console } = {}) {
       storage: env.DATABASE_URL ? 'PostgreSQL' : 'file JSON',
       retrieval: mode === 'vector' ? `pgvector (${env.EMBEDDING_MODEL})` : 'TF-IDF',
       generator: generatorName,
+      assistant: persona.name,
       minScore,
     },
     close: () => Promise.all(closers.map((close) => close())),

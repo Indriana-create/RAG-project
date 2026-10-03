@@ -1,23 +1,39 @@
 import { createMessage, Role } from '../../domain/message.js';
 import { UpstreamError } from '../../domain/errors.js';
+import { noAnswerMessage } from '../../domain/fallback.js';
+import { tokenize } from '../../domain/text.js';
 import { ValidationError } from '../errors.js';
 
 const MAX_QUESTION_LENGTH = 1000;
 const HISTORY_WINDOW = 6;
-const NO_CONTEXT_ANSWER = 'Maaf, saya tidak menemukan informasi tersebut di basis pengetahuan. Coba ubah pertanyaan Anda.';
+const MAX_FOLLOW_UP_TOKENS = 6;
+const NO_TOPICS = { titles: async () => [] };
 
-/** Use case inti RAG: retrieve konteks → generate jawaban → simpan riwayat. */
+/**
+ * Use case inti RAG: retrieve informasi → generate jawaban → simpan riwayat.
+ *
+ * - Ada informasi yang cocok: LLM menjawab berdasarkan informasi itu.
+ * - Tidak ada yang cocok: LLM tetap dipanggil dengan aturan ketat (hanya sapaan / perkenalan / klarifikasi,
+ *   tidak boleh memberi fakta), disertai daftar topik. Bila LLM tidak tersedia, dipakai pesan tetap.
+ * - Pertanyaan singkat yang tidak menemukan apa pun dianggap lanjutan ("kalau ke Papua?"), sehingga
+ *   pencarian diulang dengan menyertakan pertanyaan pengguna sebelumnya.
+ */
 export class AskQuestion {
-  constructor({ retriever, answerGenerator, history, topK = 3, minScore = 0.05 }) {
-    Object.assign(this, { retriever, answerGenerator, history, topK, minScore });
+  constructor({ retriever, answerGenerator, history, topics = NO_TOPICS, topK = 3, minScore = 0.05 }) {
+    Object.assign(this, { retriever, answerGenerator, history, topics, topK, minScore });
   }
 
   /** Jawaban utuh (sekali kirim). */
   async execute({ sessionId, question, signal }) {
     const turn = await this.#prepare({ sessionId, question, signal });
-    const answer = turn.contexts.length
-      ? await this.answerGenerator.generate({ question: turn.question, contexts: turn.contexts, history: turn.previous, signal })
-      : NO_CONTEXT_ANSWER;
+    const input = { question: turn.question, contexts: turn.contexts, history: turn.previous, topics: turn.topics, signal };
+    let answer;
+    try {
+      answer = await this.answerGenerator.generate(input);
+    } catch (err) {
+      if (!this.#canFallBack(err, turn)) throw err;
+      answer = noAnswerMessage(turn.topics);
+    }
     return this.#persist(sessionId, turn, answer);
   }
 
@@ -29,22 +45,31 @@ export class AskQuestion {
     const turn = await this.#prepare({ sessionId, question, signal });
     yield { type: 'sources', sources: turn.sources };
 
+    const input = { question: turn.question, contexts: turn.contexts, history: turn.previous, topics: turn.topics, signal };
     let answer = '';
-    if (!turn.contexts.length) {
-      answer = NO_CONTEXT_ANSWER;
-      yield { type: 'token', text: answer };
-    } else if (typeof this.answerGenerator.stream === 'function') {
-      const input = { question: turn.question, contexts: turn.contexts, history: turn.previous, signal };
-      for await (const text of this.answerGenerator.stream(input)) {
-        answer += text;
-        yield { type: 'token', text };
+    try {
+      if (typeof this.answerGenerator.stream === 'function') {
+        for await (const text of this.answerGenerator.stream(input)) {
+          answer += text;
+          yield { type: 'token', text };
+        }
+      } else {
+        answer = await this.answerGenerator.generate(input);
+        yield { type: 'token', text: answer };
       }
-    } else {
-      answer = await this.answerGenerator.generate({ question: turn.question, contexts: turn.contexts, history: turn.previous, signal });
+    } catch (err) {
+      // Hanya bila belum ada satu token pun yang terkirim ke pengguna.
+      if (answer || !this.#canFallBack(err, turn)) throw err;
+      answer = noAnswerMessage(turn.topics);
       yield { type: 'token', text: answer };
     }
     yield { type: 'done', message: await this.#persist(sessionId, turn, answer) };
   }
+
+  /** Tanpa informasi yang cocok, kegagalan LLM tidak perlu menggagalkan percakapan: pakai pesan tetap. */
+  #canFallBack(err, turn) { return err instanceof UpstreamError && turn.contexts.length === 0; }
+
+  #relevant(hits) { return hits.filter((h) => h.score >= this.minScore); }
 
   async #prepare({ sessionId, question, signal }) {
     const q = (question ?? '').trim();
@@ -53,11 +78,21 @@ export class AskQuestion {
     if (q.length > MAX_QUESTION_LENGTH) throw new ValidationError(`Pertanyaan maksimal ${MAX_QUESTION_LENGTH} karakter`);
 
     const previous = (await this.history.list(sessionId)).slice(-HISTORY_WINDOW);
-    const hits = (await this.retriever.search(q, this.topK, { signal })).filter((h) => h.score >= this.minScore);
+    let hits = this.#relevant(await this.retriever.search(q, this.topK, { signal }));
+
+    if (!hits.length) {
+      const words = tokenize(q).length;
+      const lastQuestion = [...previous].reverse().find((m) => m.role === Role.USER)?.content;
+      if (lastQuestion && words >= 1 && words <= MAX_FOLLOW_UP_TOKENS) {
+        hits = this.#relevant(await this.retriever.search(`${lastQuestion} ${q}`, this.topK, { signal }));
+      }
+    }
+
     const sources = [...new Map(hits.map((h) => [h.chunk.documentId, {
       id: h.chunk.documentId, title: h.chunk.title, score: Math.round(h.score * 1000) / 1000,
     }])).values()];
-    return { question: q, previous, contexts: hits.map((h) => h.chunk), sources };
+    const topics = hits.length ? [] : await this.topics.titles();
+    return { question: q, previous, contexts: hits.map((h) => h.chunk), sources, topics };
   }
 
   async #persist(sessionId, turn, answer) {

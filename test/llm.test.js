@@ -26,8 +26,9 @@ test('generator OpenAI-compatible: mengirim pesan yang benar dan membaca jawaban
     assert.equal(body.model, 'qwen');
     assert.equal(body.stream, false);
     assert.deepEqual(body.messages.map((m) => m.role), ['system', 'user', 'assistant', 'user']);
-    assert.match(body.messages.at(-1).content, /\[1\] Garansi\nGaransi 24 bulan\./);
-    assert.match(body.messages.at(-1).content, /Pertanyaan: berapa lama garansi\?/);
+    assert.match(body.messages.at(-1).content, /Informasi resmi:\n\[1\] Garansi\nGaransi 24 bulan\./);
+    assert.match(body.messages.at(-1).content, /Pesan pengguna: berapa lama garansi\?/);
+    assert.match(body.messages[0].content, /ATURAN KEJUJURAN/);
   } finally { await llm.stop(); }
 });
 
@@ -91,12 +92,13 @@ test('AskQuestion.stream: urutan event sources → token → done dan riwayat te
     assert.equal(events.filter((e) => e.type === 'token').map((e) => e.text).join(''), 'Berlaku 24 bulan sesuai dokumen.');
     assert.equal((await history.list('s')).length, 2);
 
-    // di luar konteks: tanpa memanggil LLM
+    // di luar konteks: LLM tetap dipanggil (mode ketat), tanpa sumber
     const before = llm.state.requests.length;
     const out = [];
     for await (const e of ask.stream({ sessionId: 's2', question: 'siapa presiden mars?' })) out.push(e);
     assert.deepEqual(out[0].sources, []);
-    assert.equal(llm.state.requests.length, before);
+    assert.equal(llm.state.requests.length, before + 1);
+    assert.match(llm.state.requests.at(-1).body.messages[0].content, /KONDISI SAAT INI: tidak ada informasi resmi/);
   } finally { await llm.stop(); }
 });
 

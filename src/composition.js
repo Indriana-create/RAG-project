@@ -39,7 +39,10 @@ export async function buildApp({
 
   const server = createServer({
     chat: new ChatController({
-      askQuestion: new AskQuestion({ retriever, answerGenerator, history, minScore }),
+      askQuestion: new AskQuestion({
+        retriever, answerGenerator, history, minScore,
+        topics: { titles: async () => (await repository.list()).filter((d) => d.enabled).map((d) => d.title) },
+      }),
       getHistory: new GetHistory({ history }),
       clearHistory: new ClearHistory({ history }),
     }),
