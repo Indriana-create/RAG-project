@@ -58,7 +58,13 @@ LLM_BASE_URL=http://localhost:1234/v1 LLM_MODEL=nama-model ADMIN_TOKEN=rahasia n
 
 **Dari dalam Docker (Windows/Mac)** `localhost` menunjuk ke kontainer itu sendiri. Pakai `http://host.docker.internal:1234/v1`, dan di LM Studio aktifkan **Serve on Local Network** (bila tidak, koneksi dari Docker ditolak). Firewall Windows juga harus mengizinkan port tersebut.
 
-Catatan: model "thinking" bisa memuntahkan blok `<think>…</think>` ke jawaban; pakai varian instruct non-thinking atau matikan mode berpikir di server.
+**Model "thinking" (mis. Qwen3.x di vLLM).** Mode berpikir membuat jawaban lambat muncul. Matikan per permintaan:
+
+```bash
+LLM_EXTRA_BODY='{"chat_template_kwargs":{"enable_thinking":false}}'
+```
+
+`LLM_EXTRA_BODY` diteruskan apa adanya ke permintaan (field `model`, `messages`, `stream` tidak bisa ditimpa), jadi bisa dipakai untuk opsi khusus runtime lain. Alternatif di sisi server vLLM: `--default-chat-template-kwargs '{"enable_thinking": false}'`. Sebagai pengaman, blok `<think>…</think>` yang tetap ditulis model dibuang dari jawaban (kasus tag pembuka yang hilang tidak ditangani; pakai `--reasoning-parser` di vLLM).
 
 ## PostgreSQL + pgvector
 
@@ -143,7 +149,7 @@ Mengganti komponen cukup menulis adapter baru dan mengubah `bootstrap.js` — us
 ## Pengujian
 
 ```bash
-npm test                                                   # 17 tes; 4 tes PostgreSQL otomatis dilewati
+npm test                                                   # 22 tes; 4 tes PostgreSQL otomatis dilewati
 TEST_DATABASE_URL=postgres://user:pass@localhost:5432/ragtest npm test   # + tes PostgreSQL/pgvector
 ```
 

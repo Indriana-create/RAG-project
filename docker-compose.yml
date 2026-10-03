@@ -15,6 +15,7 @@ services:
       LLM_TEMPERATURE: ${LLM_TEMPERATURE:-}
       LLM_MAX_TOKENS: ${LLM_MAX_TOKENS:-}
       LLM_TIMEOUT_MS: ${LLM_TIMEOUT_MS:-}
+      LLM_EXTRA_BODY: ${LLM_EXTRA_BODY:-}
       # --- Pencarian semantik (butuh DATABASE_URL dengan pgvector) ---
       EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-}

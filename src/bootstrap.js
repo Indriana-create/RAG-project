@@ -12,6 +12,14 @@ import { OpenAiCompatibleEmbedder } from './infrastructure/embedding/openai-comp
 
 const DEFAULT_MIN_SCORE = { tfidf: 0.05, vector: 0.35 };
 
+const parseExtraBody = (raw) => {
+  if (!raw) return {};
+  let parsed;
+  try { parsed = JSON.parse(raw); } catch { throw new Error('LLM_EXTRA_BODY harus berupa JSON yang valid'); }
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('LLM_EXTRA_BODY harus berupa objek JSON');
+  return parsed;
+};
+
 const sslFrom = (value) => {
   if (value === 'true') return { rejectUnauthorized: true };
   if (value === 'no-verify') return { rejectUnauthorized: false };
@@ -73,6 +81,7 @@ export async function createDependencies(env, { logger = console } = {}) {
       temperature: env.LLM_TEMPERATURE === undefined || env.LLM_TEMPERATURE === '' ? undefined : Number(env.LLM_TEMPERATURE),
       maxTokens: Number(env.LLM_MAX_TOKENS) || undefined,
       timeoutMs: Number(env.LLM_TIMEOUT_MS) || undefined,
+      extraBody: parseExtraBody(env.LLM_EXTRA_BODY),
     });
     generatorName = `LLM lokal (${env.LLM_MODEL} @ ${env.LLM_BASE_URL})`;
   } else if (env.ANTHROPIC_API_KEY) {
