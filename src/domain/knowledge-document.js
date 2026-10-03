@@ -1,6 +1,6 @@
 import { ValidationError } from './errors.js';
 
-export const LIMITS = Object.freeze({ title: 120, content: 200_000 });
+export const LIMITS = Object.freeze({ title: 120, content: 500_000, fileBytes: 10 * 1024 * 1024 });
 
 /** Dokumen pengetahuan yang bisa dikelola admin; hanya yang `enabled` yang dipakai chatbot. */
 export function createKnowledgeDocument({ id, title, content, enabled = true, createdAt, updatedAt }) {

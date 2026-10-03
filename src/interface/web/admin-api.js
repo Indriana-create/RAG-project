@@ -36,6 +36,18 @@ export function createAdminApi() {
     get: (id) => request(knowledge(id)),
     create: (data) => request('/api/admin/knowledge', json('POST', data)),
     update: (id, data) => request(knowledge(id), json('PUT', data)),
+    /** Unggah file mentah; server mengembalikan teksnya (tidak menyimpan). */
+    extract: async (file) => {
+      const res = await fetch('/api/admin/knowledge/extract', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'content-type': 'application/octet-stream', 'x-filename': encodeURIComponent(file.name) },
+        body: file,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw Object.assign(new Error(data.error ?? t('common.requestFailed')), { status: res.status });
+      return data;
+    },
     search: (query) => request('/api/admin/search', json('POST', { query })),
     remove: (id) => request(knowledge(id), { method: 'DELETE' }),
   };

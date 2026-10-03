@@ -76,8 +76,12 @@ const id = {
 
   // Admin: editor knowledge
   'ed.add': 'Tambah knowledge', 'ed.edit': 'Edit knowledge', 'ed.title': 'Judul',
-  'ed.file': 'Unggah file (.md / .txt, maks 1 MB)', 'ed.content': 'Isi', 'ed.enabled': 'Aktif (dipakai chatbot)',
-  'ed.save': 'Simpan', 'ed.fileTooBig': 'File lebih dari 1 MB.',
+  'ed.file': 'Unggah file (PDF, DOCX, PPTX, TXT, MD, CSV — maks 10 MB), atau tulis langsung di kolom Isi',
+  'ed.content': 'Isi', 'ed.enabled': 'Aktif (dipakai chatbot)',
+  'ed.save': 'Simpan', 'ed.fileTooBig': 'File lebih dari 10 MB.',
+  'ed.reading': 'Membaca file…',
+  'ed.extracted': 'Teks diambil dari {format} ({detail}{chars} karakter). Periksa dan ubah bila perlu sebelum menyimpan.',
+  'ed.pages': '{n} halaman, ', 'ed.slides': '{n} slide, ',
 
   // Admin: password
   'pw.change': 'Ubah password', 'pw.reset': 'Reset password @{username}',
@@ -167,8 +171,12 @@ const en = {
   'search.used': 'used', 'search.below': 'below threshold',
 
   'ed.add': 'Add knowledge', 'ed.edit': 'Edit knowledge', 'ed.title': 'Title',
-  'ed.file': 'Upload a file (.md / .txt, max 1 MB)', 'ed.content': 'Content', 'ed.enabled': 'Active (used by the chatbot)',
-  'ed.save': 'Save', 'ed.fileTooBig': 'File is larger than 1 MB.',
+  'ed.file': 'Upload a file (PDF, DOCX, PPTX, TXT, MD, CSV — max 10 MB), or just type in the Content field',
+  'ed.content': 'Content', 'ed.enabled': 'Active (used by the chatbot)',
+  'ed.save': 'Save', 'ed.fileTooBig': 'File is larger than 10 MB.',
+  'ed.reading': 'Reading file…',
+  'ed.extracted': 'Text extracted from {format} ({detail}{chars} characters). Review and edit it before saving if needed.',
+  'ed.pages': '{n} pages, ', 'ed.slides': '{n} slides, ',
 
   'pw.change': 'Change password', 'pw.reset': 'Reset password for @{username}',
   'pw.hintChange': 'At least 8 characters. After changing it, other devices that are still signed in will be signed out automatically.',

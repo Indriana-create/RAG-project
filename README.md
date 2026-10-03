@@ -246,7 +246,7 @@ Mengganti komponen cukup menulis adapter baru dan mengubah `bootstrap.js` — us
 ## Pengujian
 
 ```bash
-npm test                                                   # 81 tes; 8 tes PostgreSQL otomatis dilewati
+npm test                                                   # 96 tes; 8 tes PostgreSQL otomatis dilewati
 TEST_DATABASE_URL=postgres://user:pass@localhost:5432/ragtest npm test   # + tes PostgreSQL/pgvector
 ```
 
@@ -271,3 +271,21 @@ Halaman chat dan admin punya pilihan bahasa **ID | EN** di pojok kanan atas. Pil
 ## Logo dan ikon
 
 Berkas ada di `src/interface/web/`: `logo-mark.png` (simbol di header chat dan admin), `favicon.png` (ikon tab, 64 px) dan `apple-touch-icon.png` (180 px). Tulisan "LumiAssist" di header adalah teks biasa yang diberi warna logo ("Lumi" biru tua, "Assist" indigo; warnanya di `styles.css`), jadi tetap tajam di layar apa pun. Untuk mengganti logo, timpa berkas-berkas itu; versi aset otomatis membuat peramban mengambil yang baru. Bila ada logo versi besar atau SVG, hasilnya akan lebih tajam di layar HP beresolusi tinggi.
+
+## Unggah file sebagai knowledge
+
+Di **Tambah/Edit knowledge**, admin bisa **mengunggah file** atau **menulis sendiri** isinya di kolom Isi.
+
+| Format | Yang diambil |
+|---|---|
+| **PDF** | teks per halaman (baris dan paragraf mengikuti posisi di halaman) |
+| **DOCX** | paragraf dan tabel (baris tabel menjadi `sel \| sel`) |
+| **PPTX** | teks tiap slide (berjudul "Slide N", urut sesuai presentasi) beserta catatan pembicara |
+| **TXT, MD, CSV** | isi apa adanya (UTF-8 atau UTF-16 ber-BOM); judul dari heading `# ...` pada Markdown |
+
+- **Maksimal 10 MB per file.** Teks hasil ekstraksi maksimal 500.000 karakter (pecah file yang lebih besar).
+- File **tidak langsung disimpan**: teksnya muncul di editor untuk diperiksa dan dirapikan dulu, baru disimpan seperti knowledge biasa (jadi bisa diedit/dinonaktifkan/dihapus).
+- **Belum didukung:** format lama `.doc`/`.ppt`/`.xls` (buka lalu "Simpan sebagai" DOCX/PPTX/PDF), **PDF hasil scan atau gambar** (tidak ada teks; perlu OCR), file ber-password, serta gambar/grafik di dalam dokumen. Tabel di PDF dibaca sebagai teks biasa (kolom bisa tidak rapi).
+- Keamanan: jenis file diperiksa dari isinya (bukan hanya nama), arsip DOCX/PPTX dibatasi ukuran setelah dibuka (anti "zip bomb"), PDF dibaca tanpa menjalankan skrip (PDF.js 6.x; versi 5.6–6.2 punya celah eksekusi JavaScript dan **jangan diturunkan**). Endpoint: `POST /api/admin/knowledge/extract` (isi mentah + header `x-filename`; sesi login atau Bearer token).
+- Dokumen besar menghasilkan banyak chunk; dengan embedding di CPU, **menyimpannya bisa memakan waktu** (puluhan detik sampai menit). Bila di balik Cloudflare permintaan melewati ~100 detik, kemungkinan muncul galat 524 padahal indeksnya tetap selesai di server; muat ulang daftar untuk memastikan.
+- Membutuhkan **Node ≥ 22.13** (image Docker memakai Node 24).

@@ -8,6 +8,8 @@ import {
 } from './application/use-cases/admin-auth.js';
 import { AssistantSettingsService } from './application/use-cases/assistant-settings.js';
 import { SearchKnowledge } from './application/use-cases/search-knowledge.js';
+import { ExtractDocumentText } from './application/use-cases/extract-document-text.js';
+import { createDocumentTextExtractor } from './infrastructure/documents/index.js';
 import { ListKnowledge, GetKnowledge, SaveKnowledge, DeleteKnowledge } from './application/use-cases/manage-knowledge.js';
 import { FileDocumentSource } from './infrastructure/knowledge/file-document-source.js';
 import { InMemoryChatHistory } from './infrastructure/persistence/in-memory-chat-history.js';
@@ -55,6 +57,7 @@ export async function buildApp({
       saveKnowledge: new SaveKnowledge({ repository, reindex, newId: randomUUID }),
       deleteKnowledge: new DeleteKnowledge({ repository, reindex }),
       searchKnowledge: new SearchKnowledge({ retriever, minScore }),
+      extractDocumentText: new ExtractDocumentText({ extractor: createDocumentTextExtractor() }),
     }),
     adminAssistant: new AdminAssistantController({ assistant }),
     adminAccounts: new AdminAccountController({

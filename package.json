@@ -9,9 +9,10 @@
     "test": "node --test \"test/*.test.js\""
   },
   "engines": {
-    "node": ">=20.3"
+    "node": ">=22.13"
   },
   "dependencies": {
+    "pdfjs-dist": "6.4.299",
     "pg": "^8.23.1"
   }
 }

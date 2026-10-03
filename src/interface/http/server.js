@@ -11,15 +11,18 @@ import {
 
 const MIME = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon' };
 const MAX_BODY = 1_000_000;
+const MAX_KNOWLEDGE_BODY = 3_000_000; // isi knowledge sampai 500.000 karakter (bisa 2 byte/karakter) + JSON
+const MAX_UPLOAD = 10 * 1024 * 1024;
 
 /**
  * Path ':nama' menjadi named group regex. `auth`:
  *  - 'none'    publik
  *  - 'admin'   sesi login ATAU Bearer token (otomasi)
  *  - 'session' hanya sesi login (akun, ubah password) — Bearer tidak cukup
+ * `maxBody` membatasi ukuran JSON; `raw` menerima isi mentah (unggah file) dan mengirimnya sebagai Buffer.
  */
-const route = (method, pattern, handler, { auth = 'none' } = {}) => ({
-  method, handler, auth,
+const route = (method, pattern, handler, { auth = 'none', maxBody = MAX_BODY, raw = false } = {}) => ({
+  method, handler, auth, maxBody, raw,
   regex: new RegExp(`^${pattern.replace(/:(\w+)/g, '(?<$1>[\\w-]+)')}$`),
 });
 
@@ -51,10 +54,11 @@ export function createServer({
 
     route('POST', '/api/admin/search', adminKnowledge.search, { auth: 'admin' }),
     route('GET', '/api/admin/knowledge', adminKnowledge.list, { auth: 'admin' }),
-    route('POST', '/api/admin/knowledge', adminKnowledge.create, { auth: 'admin' }),
+    route('POST', '/api/admin/knowledge/extract', adminKnowledge.extract, { auth: 'admin', raw: true }),
+    route('POST', '/api/admin/knowledge', adminKnowledge.create, { auth: 'admin', maxBody: MAX_KNOWLEDGE_BODY }),
     route('GET', '/api/admin/knowledge/:id', adminKnowledge.get, { auth: 'admin' }),
-    route('PUT', '/api/admin/knowledge/:id', adminKnowledge.update, { auth: 'admin' }),
-    route('PATCH', '/api/admin/knowledge/:id', adminKnowledge.update, { auth: 'admin' }),
+    route('PUT', '/api/admin/knowledge/:id', adminKnowledge.update, { auth: 'admin', maxBody: MAX_KNOWLEDGE_BODY }),
+    route('PATCH', '/api/admin/knowledge/:id', adminKnowledge.update, { auth: 'admin', maxBody: MAX_KNOWLEDGE_BODY }),
     route('DELETE', '/api/admin/knowledge/:id', adminKnowledge.remove, { auth: 'admin' }),
   ];
 
@@ -73,7 +77,7 @@ export function createServer({
     try {
       if (!pathname.startsWith('/api/')) return await serveStatic(res, publicDir, pathname, assets);
 
-      for (const { method, regex, handler, auth } of routes) {
+      for (const { method, regex, handler, auth, maxBody, raw } of routes) {
         const match = regex.exec(pathname);
         if (!match || req.method !== method) continue;
 
@@ -83,10 +87,11 @@ export function createServer({
         if (auth === 'admin' && !actor) return send(res, 401, { error: 'Belum login atau token tidak valid' });
         if (auth === 'session' && actor?.type !== 'session') return send(res, 401, { error: 'Belum login' });
 
-        const body = ['POST', 'PUT', 'PATCH'].includes(method) ? await readJson(req) : undefined;
+        const hasBody = ['POST', 'PUT', 'PATCH'].includes(method);
+        const body = !hasBody ? undefined : raw ? await readRaw(req, MAX_UPLOAD) : await readJson(req, maxBody);
         const abort = new AbortController();
         res.on('close', () => abort.abort()); // klien memutus koneksi → hentikan LLM
-        const out = await handler({ body, params: { ...match.groups }, signal: abort.signal, actor, ip: clientIp(req, { trustProxy }) });
+        const out = await handler({ body, params: { ...match.groups }, signal: abort.signal, actor, ip: clientIp(req, { trustProxy }), headers: req.headers });
         if (out.stream) return await sendEvents(res, out.stream, abort.signal);
 
         const headers = {};
@@ -184,12 +189,25 @@ async function serveStatic(res, root, pathname, assetVersion) {
   }
 }
 
-async function readJson(req) {
-  let raw = '';
+/** Membaca isi permintaan sebagai Buffer, berhenti begitu melewati batas (tanpa menampung sisanya). */
+async function readBuffer(req, maxBytes, tooBig) {
+  const declared = Number(req.headers['content-length']);
+  if (Number.isFinite(declared) && declared > maxBytes) throw new ValidationError(tooBig);
+  const chunks = [];
+  let size = 0;
   for await (const chunk of req) {
-    raw += chunk;
-    if (raw.length > MAX_BODY) throw new ValidationError('Payload terlalu besar');
+    size += chunk.length;
+    if (size > maxBytes) throw new ValidationError(tooBig);
+    chunks.push(chunk);
   }
+  return Buffer.concat(chunks);
+}
+
+const readRaw = (req, maxBytes) => readBuffer(req, maxBytes, `File terlalu besar (maksimal ${Math.round(maxBytes / 1024 / 1024)} MB)`);
+
+async function readJson(req, maxBytes = MAX_BODY) {
+  // Dikumpulkan sebagai Buffer lalu didekode sekali: mendekode per potongan merusak karakter multi-byte di perbatasan potongan.
+  const raw = (await readBuffer(req, maxBytes, 'Payload terlalu besar')).toString('utf8');
   let parsed;
   try { parsed = raw ? JSON.parse(raw) : {}; } catch { throw new ValidationError('JSON tidak valid'); }
   if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) throw new ValidationError('Body harus berupa objek JSON');

@@ -114,7 +114,8 @@
       <label for="docTitle" data-i18n="ed.title">Judul</label>
       <input id="docTitle" maxlength="120" required>
       <label for="docFile" data-i18n="ed.file">Unggah file (.md / .txt, maks 1 MB)</label>
-      <input id="docFile" type="file" accept=".md,.txt,text/plain,text/markdown">
+      <input id="docFile" type="file" accept=".pdf,.docx,.pptx,.txt,.md,.markdown,.csv">
+      <p id="fileInfo" class="muted" role="status"></p>
       <label for="docContent" data-i18n="ed.content">Isi</label>
       <textarea id="docContent" rows="12" required></textarea>
       <label class="check"><input id="docEnabled" type="checkbox" checked> <span data-i18n="ed.enabled">Aktif (dipakai chatbot)</span></label>

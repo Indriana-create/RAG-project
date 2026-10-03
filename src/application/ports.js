@@ -44,6 +44,10 @@
  * @typedef {Object} PersonaProvider
  * @property {() => Promise<{name: string, style: string, about: string}>} current persona asisten saat ini (bisa diubah admin)
  *
+ * @typedef {Object} DocumentTextExtractor
+ * @property {(input: {filename: string, buffer: Buffer}) => Promise<{text: string, title: string, format: string, pages?: number, slides?: number}>} extract
+ *   mengambil teks dari PDF/DOCX/PPTX/TXT; lempar ValidationError bila file tidak valid atau tidak didukung
+ *
  * @typedef {Object} Retriever
  * @property {(chunks: Chunk[]) => Promise<void>} index
  * @property {(query: string, topK: number, options?: {signal?: AbortSignal}) => Promise<Array<{chunk: Chunk, score: number}>>} search

@@ -2,7 +2,7 @@ import { createAdminApi } from './admin-api.js';
 import { applyTranslations, initI18n, locale, onLanguageChange, t } from './i18n.js';
 
 const $ = (id) => document.getElementById(id);
-const MAX_FILE = 1_000_000;
+const MAX_FILE = 10 * 1024 * 1024;
 let me = null;
 let editingId = null;
 let lastItems = [];
@@ -130,6 +130,7 @@ async function openEditor(id = null) {
   editingId = id;
   $('editorError').textContent = '';
   $('docFile').value = '';
+  $('fileInfo').textContent = '';
   $('editorTitle').textContent = id ? t('ed.edit') : t('ed.add');
   if (id) {
     try {
@@ -454,17 +455,28 @@ $('cancel').addEventListener('click', () => $('editor').close());
 
 $('docFile').addEventListener('change', async (e) => {
   const file = e.target.files[0];
+  $('editorError').textContent = '';
+  $('fileInfo').textContent = '';
   if (!file) return;
   if (file.size > MAX_FILE) {
     e.target.value = '';
     $('editorError').textContent = t('ed.fileTooBig');
     return;
   }
-  $('editorError').textContent = '';
-  const text = await file.text();
-  $('docContent').value = text;
-  if (!$('docTitle').value.trim()) {
-    $('docTitle').value = text.match(/^#\s+(.+)$/m)?.[1] ?? file.name.replace(/\.[^.]+$/, '');
+  $('fileInfo').textContent = t('ed.reading');
+  $('save').disabled = true;
+  try {
+    const doc = await api.extract(file);
+    $('docContent').value = doc.content;
+    if (!$('docTitle').value.trim()) $('docTitle').value = doc.title;
+    const detail = doc.pages ? t('ed.pages', { n: doc.pages }) : doc.slides ? t('ed.slides', { n: doc.slides }) : '';
+    $('fileInfo').textContent = t('ed.extracted', { format: doc.format, detail, chars: doc.chars.toLocaleString(locale()) });
+  } catch (err) {
+    $('fileInfo').textContent = '';
+    e.target.value = '';
+    if (err.status === 401) { $('editor').close(); sessionExpired(); } else $('editorError').textContent = err.message;
+  } finally {
+    $('save').disabled = false;
   }
 });
 
