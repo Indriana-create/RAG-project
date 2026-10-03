@@ -472,11 +472,12 @@ test('seed admin: akun menunggu tidak dianggap admin; migrasi PostgreSQL memberi
 test('berkas statis tidak boleh di-cache (mencegah Cloudflare menyajikan JS lama dengan HTML baru)', async () => {
   const t = await start();
   try {
-    for (const file of ['/', '/admin.html', '/admin.js', '/app.js', '/styles.css']) {
+    for (const file of ['/', '/admin.html', '/admin.js', '/app.js', '/styles.css', '/logo.png']) {
       const res = await fetch(t.base + file);
       assert.equal(res.status, 200, file);
       assert.equal(res.headers.get('cache-control'), 'no-store', file);
     }
+    assert.equal((await fetch(t.base + '/logo.png')).headers.get('content-type'), 'image/png');
   } finally { await t.stop(); }
 });
 

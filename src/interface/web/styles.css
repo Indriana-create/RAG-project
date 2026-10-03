@@ -11,6 +11,9 @@ body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 syst
 .topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
 .brand { display: flex; gap: 12px; align-items: center; }
 .brand h1 { margin: 0; font-size: 1.05rem; } .brand p { margin: 0; font-size: .8rem; color: var(--muted); }
+.wordmark { height: 24px; width: auto; flex: none; }
+.brand-text { padding-left: 12px; border-left: 1px solid var(--border); min-width: 0; }
+@media (prefers-color-scheme: dark) { .wordmark { filter: invert(1); } } /* logo hitam transparan → putih di tema gelap */
 .logo { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; background: var(--accent); color: var(--accent-text); }
 .ghost { background: none; border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 10px; cursor: pointer; font: inherit; font-size: .85rem; }
 .actions-top { display: flex; gap: 8px; }
@@ -36,4 +39,4 @@ a.ghost { text-decoration: none; display: inline-block; }
 .composer textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 .composer button { width: 46px; border: 0; border-radius: 14px; background: var(--accent); color: var(--accent-text); cursor: pointer; font-size: 1.1rem; }
 .composer button:disabled { opacity: .5; cursor: not-allowed; }
-@media (max-width: 600px) { .app { border: 0; } .msg { max-width: 92%; } }
+@media (max-width: 600px) { .app { border: 0; } .msg { max-width: 92%; } .wordmark { height: 20px; } .brand { gap: 10px; } .brand-text { padding-left: 10px; } .brand p { display: none; } .topbar { flex-wrap: wrap; } .actions-top { margin-left: auto; } .actions-top .ghost { white-space: nowrap; } }
