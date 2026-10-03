@@ -4,10 +4,15 @@ services:
     ports:
       - "3000:3000"
     environment:
+      # Token untuk /admin.html. Kosong = token acak dicetak di log (berubah tiap restart).
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-}
       # Opsional: kosongkan untuk mode ekstraktif offline.
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-5-5}
     volumes:
-      # Edit dokumen tanpa rebuild; restart container untuk mengindeks ulang.
-      - ./knowledge:/app/knowledge:ro
+      # Knowledge hasil kelolaan admin disimpan di sini dan bertahan antar restart.
+      - rag-data:/app/data
     restart: unless-stopped
+
+volumes:
+  rag-data:

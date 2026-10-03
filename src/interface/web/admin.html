@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Admin Knowledge</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%278%27 fill=%27%235b5bf0%27/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/admin.css">
+</head>
+<body class="admin-body">
+  <main class="admin">
+    <header class="admin-top">
+      <div class="brand"><span class="logo" aria-hidden="true">✦</span><div><h1>Admin Knowledge</h1><p>Kelola dokumen yang dipakai chatbot</p></div></div>
+      <nav><a href="/">← Chatbot</a><button id="logout" class="ghost" type="button" hidden>Keluar</button></nav>
+    </header>
+
+    <section id="login" class="card" hidden>
+      <h2>Masuk admin</h2>
+      <form id="loginForm">
+        <label for="token">Token admin</label>
+        <input id="token" type="password" autocomplete="off" required>
+        <p id="loginError" class="error" role="alert"></p>
+        <button class="primary" type="submit">Masuk</button>
+      </form>
+    </section>
+
+    <section id="panel" hidden>
+      <div class="toolbar">
+        <p id="summary" class="muted"></p>
+        <button id="add" class="primary" type="button">+ Tambah knowledge</button>
+      </div>
+      <ul id="list" class="list"></ul>
+      <p id="empty" class="card muted" hidden>Belum ada knowledge. Klik “Tambah knowledge” atau unggah file .md / .txt.</p>
+    </section>
+  </main>
+
+  <dialog id="editor">
+    <form id="editorForm">
+      <h2 id="editorTitle">Tambah knowledge</h2>
+      <label for="docTitle">Judul</label>
+      <input id="docTitle" maxlength="120" required>
+      <label for="docFile">Unggah file (.md / .txt, maks 1 MB)</label>
+      <input id="docFile" type="file" accept=".md,.txt,text/plain,text/markdown">
+      <label for="docContent">Isi</label>
+      <textarea id="docContent" rows="12" required></textarea>
+      <label class="check"><input id="docEnabled" type="checkbox" checked> Aktif (dipakai chatbot)</label>
+      <p id="editorError" class="error" role="alert"></p>
+      <div class="actions">
+        <button class="ghost" type="button" id="cancel">Batal</button>
+        <button class="primary" type="submit" id="save">Simpan</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="/admin.js"></script>
+</body>
+</html>

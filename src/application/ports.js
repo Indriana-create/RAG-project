@@ -2,11 +2,17 @@
  * Port (kontrak) yang dibutuhkan layer application.
  * Implementasinya hidup di layer infrastructure — dependensi selalu mengarah ke dalam.
  *
- * @typedef {{id:string,title:string,content:string}} KnowledgeDocument
+ * @typedef {import('../domain/knowledge-document.js').KnowledgeDocument} KnowledgeDocument
  * @typedef {import('../domain/chunk.js').Chunk} Chunk
  *
  * @typedef {Object} DocumentSource
  * @property {() => Promise<KnowledgeDocument[]>} loadAll
+ *
+ * @typedef {Object} KnowledgeRepository
+ * @property {() => Promise<KnowledgeDocument[]>} list
+ * @property {(id: string) => Promise<KnowledgeDocument|undefined>} get
+ * @property {(doc: KnowledgeDocument) => Promise<void>} save
+ * @property {(id: string) => Promise<boolean>} delete
  *
  * @typedef {Object} Retriever
  * @property {(chunks: Chunk[]) => Promise<void>} index

@@ -1,32 +1,34 @@
 import path from 'node:path';
+import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { IngestKnowledge } from './application/use-cases/ingest-knowledge.js';
-import { AskQuestion } from './application/use-cases/ask-question.js';
-import { GetHistory, ClearHistory } from './application/use-cases/manage-history.js';
-import { FileDocumentSource } from './infrastructure/knowledge/file-document-source.js';
-import { TfidfRetriever } from './infrastructure/retrieval/tfidf-retriever.js';
-import { ExtractiveAnswerGenerator } from './infrastructure/generation/extractive-answer-generator.js';
+import { buildApp } from './composition.js';
 import { AnthropicAnswerGenerator } from './infrastructure/generation/anthropic-answer-generator.js';
-import { InMemoryChatHistory } from './infrastructure/persistence/in-memory-chat-history.js';
-import { ChatController } from './interface/http/chat-controller.js';
-import { createServer } from './interface/http/server.js';
+import { ExtractiveAnswerGenerator } from './infrastructure/generation/extractive-answer-generator.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const { PORT = 3000, KNOWLEDGE_DIR = path.join(root, 'knowledge'), ANTHROPIC_API_KEY, ANTHROPIC_MODEL = 'claude-sonnet-5-5' } = process.env;
+const {
+  PORT = 3000,
+  DATA_DIR = path.join(root, 'data'),
+  KNOWLEDGE_DIR = path.join(root, 'knowledge'),
+  ANTHROPIC_API_KEY,
+  ANTHROPIC_MODEL = 'claude-sonnet-5-5',
+} = process.env;
 
-// Composition root: satu-satunya tempat yang tahu implementasi konkret.
-const retriever = new TfidfRetriever();
-const history = new InMemoryChatHistory();
+let adminToken = process.env.ADMIN_TOKEN;
+if (!adminToken) {
+  adminToken = randomBytes(16).toString('hex');
+  console.warn(`ADMIN_TOKEN tidak diset. Token sementara (berubah tiap restart): ${adminToken}`);
+}
+
 const answerGenerator = ANTHROPIC_API_KEY
   ? new AnthropicAnswerGenerator({ apiKey: ANTHROPIC_API_KEY, model: ANTHROPIC_MODEL })
   : new ExtractiveAnswerGenerator();
 
-const stats = await new IngestKnowledge({ documentSource: new FileDocumentSource(KNOWLEDGE_DIR), retriever }).execute();
-const controller = new ChatController({
-  askQuestion: new AskQuestion({ retriever, answerGenerator, history }),
-  getHistory: new GetHistory({ history }),
-  clearHistory: new ClearHistory({ history }),
+const { server, stats, seeded } = await buildApp({
+  dataDir: DATA_DIR, seedDir: KNOWLEDGE_DIR, publicDir: path.join(root, 'src/interface/web'), adminToken, answerGenerator,
 });
 
-createServer({ controller, publicDir: path.join(root, 'src/interface/web') }).listen(PORT, () =>
-  console.log(`http://localhost:${PORT} — ${stats.documents} dokumen, ${stats.chunks} chunk, generator: ${ANTHROPIC_API_KEY ? 'Claude' : 'ekstraktif (offline)'}`));
+server.listen(PORT, () => {
+  console.log(`http://localhost:${PORT} — ${stats.documents} dokumen aktif, ${stats.chunks} chunk${seeded ? ` (${seeded} dokumen awal diimpor)` : ''}`);
+  console.log(`Admin: http://localhost:${PORT}/admin.html — generator: ${ANTHROPIC_API_KEY ? 'Claude' : 'ekstraktif (offline)'}`);
+});

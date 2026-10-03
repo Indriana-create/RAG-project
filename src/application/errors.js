@@ -1,3 +1,1 @@
-export class ValidationError extends Error {
-  constructor(message) { super(message); this.name = 'ValidationError'; }
-}
+export { ValidationError, NotFoundError } from '../domain/errors.js';

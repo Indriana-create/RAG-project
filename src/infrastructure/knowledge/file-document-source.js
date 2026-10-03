@@ -1,12 +1,13 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-/** Adapter DocumentSource: membaca file .md/.txt dari sebuah folder. */
+/** Adapter DocumentSource: membaca file .md/.txt dari sebuah folder (folder tidak ada = kosong). */
 export class FileDocumentSource {
   constructor(dir) { this.dir = dir; }
 
   async loadAll() {
-    const files = (await readdir(this.dir)).filter((f) => /\.(md|txt)$/i.test(f)).sort();
+    const names = await readdir(this.dir).catch((err) => { if (err.code === 'ENOENT') return []; throw err; });
+    const files = names.filter((f) => /\.(md|txt)$/i.test(f)).sort();
     return Promise.all(files.map(async (file) => {
       const content = await readFile(path.join(this.dir, file), 'utf8');
       const heading = content.match(/^#\s+(.+)$/m)?.[1];

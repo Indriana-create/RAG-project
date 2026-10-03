@@ -13,6 +13,8 @@ body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 syst
 .brand h1 { margin: 0; font-size: 1.05rem; } .brand p { margin: 0; font-size: .8rem; color: var(--muted); }
 .logo { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; background: var(--accent); color: var(--accent-text); }
 .ghost { background: none; border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 10px; cursor: pointer; font: inherit; font-size: .85rem; }
+.actions-top { display: flex; gap: 8px; }
+a.ghost { text-decoration: none; display: inline-block; }
 .ghost:hover { border-color: var(--accent); }
 .messages { flex: 1; overflow-y: auto; padding: 20px 16px; display: flex; flex-direction: column; gap: 14px; }
 .welcome { margin: auto; text-align: center; max-width: 520px; }
