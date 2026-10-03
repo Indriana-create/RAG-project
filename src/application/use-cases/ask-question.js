@@ -8,6 +8,7 @@ const MAX_QUESTION_LENGTH = 1000;
 const HISTORY_WINDOW = 6;
 const MAX_FOLLOW_UP_TOKENS = 6;
 const NO_TOPICS = { titles: async () => [] };
+const DEFAULT_PERSONA = { current: async () => ({}) };
 /** Huruf non-Latin (Arab, Mandarin, dst.) tidak punya kata kunci di tokenizer kita, tetapi pencarian makna multibahasa bisa memprosesnya. */
 const HAS_NON_LATIN_LETTER = /(?!\p{Script=Latin})\p{L}/u;
 
@@ -21,14 +22,14 @@ const HAS_NON_LATIN_LETTER = /(?!\p{Script=Latin})\p{L}/u;
  *   pencarian diulang dengan menyertakan pertanyaan pengguna sebelumnya.
  */
 export class AskQuestion {
-  constructor({ retriever, answerGenerator, history, topics = NO_TOPICS, topK = 3, minScore = 0.05 }) {
-    Object.assign(this, { retriever, answerGenerator, history, topics, topK, minScore });
+  constructor({ retriever, answerGenerator, history, topics = NO_TOPICS, personas = DEFAULT_PERSONA, topK = 3, minScore = 0.05 }) {
+    Object.assign(this, { retriever, answerGenerator, history, topics, personas, topK, minScore });
   }
 
   /** Jawaban utuh (sekali kirim). */
   async execute({ sessionId, question, signal }) {
     const turn = await this.#prepare({ sessionId, question, signal });
-    const input = { question: turn.question, contexts: turn.contexts, history: turn.previous, topics: turn.topics, signal };
+    const input = { question: turn.question, contexts: turn.contexts, history: turn.previous, topics: turn.topics, persona: turn.persona, signal };
     let answer;
     try {
       answer = await this.answerGenerator.generate(input);
@@ -47,7 +48,7 @@ export class AskQuestion {
     const turn = await this.#prepare({ sessionId, question, signal });
     yield { type: 'sources', sources: turn.sources };
 
-    const input = { question: turn.question, contexts: turn.contexts, history: turn.previous, topics: turn.topics, signal };
+    const input = { question: turn.question, contexts: turn.contexts, history: turn.previous, topics: turn.topics, persona: turn.persona, signal };
     let answer = '';
     try {
       if (typeof this.answerGenerator.stream === 'function') {
@@ -96,7 +97,7 @@ export class AskQuestion {
       id: h.chunk.documentId, title: h.chunk.title, score: Math.round(h.score * 1000) / 1000,
     }])).values()];
     const topics = hits.length ? [] : await this.topics.titles();
-    return { question: q, previous, contexts: hits.map((h) => h.chunk), sources, topics };
+    return { question: q, previous, contexts: hits.map((h) => h.chunk), sources, topics, persona: await this.personas.current() };
   }
 
   async #persist(sessionId, turn, answer) {

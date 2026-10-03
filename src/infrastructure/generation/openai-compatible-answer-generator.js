@@ -22,7 +22,7 @@ export class OpenAiCompatibleAnswerGenerator {
   #request(input, stream) {
     return postJson(joinUrl(this.baseUrl, '/chat/completions'), {
       headers: authHeaders(this.apiKey),
-      body: { ...this.extraBody, model: this.model, messages: buildMessages({ ...input, persona: this.persona }), temperature: this.temperature, max_tokens: this.maxTokens, stream },
+      body: { ...this.extraBody, model: this.model, messages: buildMessages({ ...input, persona: { ...this.persona, ...input.persona } }), temperature: this.temperature, max_tokens: this.maxTokens, stream },
       signal: input.signal,
       timeoutMs: this.timeoutMs,
       fetchImpl: this.fetchImpl,

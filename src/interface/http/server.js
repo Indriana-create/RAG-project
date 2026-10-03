@@ -23,7 +23,7 @@ const route = (method, pattern, handler, { auth = 'none' } = {}) => ({
 });
 
 export function createServer({
-  chat, adminKnowledge, adminAccounts, authenticateBearer, resolveSession, sessionTtlSeconds = 12 * 3600,
+  chat, adminKnowledge, adminAccounts, adminAssistant, authenticateBearer, resolveSession, sessionTtlSeconds = 12 * 3600,
   trustProxy = false, cookieSecure = 'auto', publicDir,
 }) {
   const routes = [
@@ -41,6 +41,9 @@ export function createServer({
     route('POST', '/api/admin/users', adminAccounts.createUser, { auth: 'session' }),
     route('DELETE', '/api/admin/users/:id', adminAccounts.removeUser, { auth: 'session' }),
     route('POST', '/api/admin/users/:id/password', adminAccounts.resetPassword, { auth: 'session' }),
+
+    route('GET', '/api/admin/assistant', adminAssistant.get, { auth: 'session' }),
+    route('PUT', '/api/admin/assistant', adminAssistant.update, { auth: 'session' }),
 
     route('POST', '/api/admin/search', adminKnowledge.search, { auth: 'admin' }),
     route('GET', '/api/admin/knowledge', adminKnowledge.list, { auth: 'admin' }),

@@ -13,7 +13,9 @@ import { OpenAiCompatibleEmbedder } from '../src/infrastructure/embedding/openai
 import { createDependencies } from '../src/bootstrap.js';
 import { buildApp } from '../src/composition.js';
 import { PostgresAdminUserRepository } from '../src/infrastructure/persistence/postgres/postgres-admin-user-repository.js';
-import { migrateAdminUsers } from '../src/infrastructure/persistence/postgres/schema.js';
+import { migrateAdminUsers, migrateSettings } from '../src/infrastructure/persistence/postgres/schema.js';
+import { PostgresSettingsRepository } from '../src/infrastructure/persistence/postgres/postgres-settings-repository.js';
+import { AssistantSettingsService } from '../src/application/use-cases/assistant-settings.js';
 import { createAdminUser } from '../src/domain/admin-user.js';
 import { ConflictError } from '../src/domain/errors.js';
 import { ScryptPasswordHasher } from '../src/infrastructure/security/scrypt-password-hasher.js';
@@ -27,7 +29,7 @@ const quiet = { warn() {}, log() {} };
 let pool;
 before(() => { if (DATABASE_URL) pool = new pg.Pool({ connectionString: DATABASE_URL }); });
 after(() => pool?.end());
-const reset = () => pool.query('DROP TABLE IF EXISTS knowledge_chunks, knowledge_documents, admin_users CASCADE');
+const reset = () => pool.query('DROP TABLE IF EXISTS knowledge_chunks, knowledge_documents, admin_users, app_settings CASCADE');
 const doc = (id, title, content, enabled = true) => createKnowledgeDocument({ id, title, content, enabled, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' });
 const chunk = (documentId, title, text, index = 0) => createChunk({ documentId, title, index, text });
 
@@ -257,4 +259,20 @@ test('start menunggu layanan embedding yang belum siap, lalu menyerah dengan pes
       /Embedding membalas 503/,
     );
   } finally { await llm.stop(); }
+});
+
+test('PostgresSettingsRepository: simpan, ubah, dan bertahan antar instance', opts, async () => {
+  await reset();
+  await migrateSettings(pool);
+  await migrateSettings(pool); // idempoten
+  const defaults = { name: 'Asisten Virtual', style: '' };
+  const first = new AssistantSettingsService({ repository: new PostgresSettingsRepository(pool), defaults });
+  assert.equal((await first.get()).isDefault, true);
+  await first.update({ name: 'Lumi', style: 'Ramah', about: 'Qwen3.5-9B' }, 'lumi');
+  await first.update({ name: 'Lumi 2', style: 'Ramah banget', about: '' }, 'ani');
+
+  const second = new AssistantSettingsService({ repository: new PostgresSettingsRepository(pool), defaults }); // "restart"
+  const got = await second.get();
+  assert.deepEqual([got.name, got.style, got.about, got.updatedBy, got.isDefault], ['Lumi 2', 'Ramah banget', '', 'ani', false]);
+  assert.equal((await pool.query('SELECT count(*)::int AS n FROM app_settings')).rows[0].n, 1); // upsert, bukan baris baru
 });

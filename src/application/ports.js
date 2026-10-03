@@ -37,6 +37,13 @@
  * @property {(keys: string[]) => void} recordFailure
  * @property {(keys: string[]) => void} reset
  *
+ * @typedef {Object} SettingsRepository
+ * @property {(key: string) => Promise<({value: object, updatedAt: string, updatedBy: string}|undefined)>} get
+ * @property {(key: string, record: {value: object, updatedAt: string, updatedBy: string}) => Promise<void>} set
+ *
+ * @typedef {Object} PersonaProvider
+ * @property {() => Promise<{name: string, style: string, about: string}>} current persona asisten saat ini (bisa diubah admin)
+ *
  * @typedef {Object} Retriever
  * @property {(chunks: Chunk[]) => Promise<void>} index
  * @property {(query: string, topK: number, options?: {signal?: AbortSignal}) => Promise<Array<{chunk: Chunk, score: number}>>} search

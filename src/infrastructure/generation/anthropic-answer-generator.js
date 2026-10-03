@@ -5,7 +5,7 @@ export class AnthropicAnswerGenerator {
   constructor({ apiKey, model, persona, fetchImpl = fetch }) { Object.assign(this, { apiKey, model, persona, fetchImpl }); }
 
   async generate(input) {
-    const { system, messages } = buildPrompt({ ...input, persona: this.persona });
+    const { system, messages } = buildPrompt({ ...input, persona: { ...this.persona, ...input.persona } });
     const res = await this.fetchImpl('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-api-key': this.apiKey, 'anthropic-version': '2023-06-01' },

@@ -6,7 +6,9 @@ import { JsonFileKnowledgeRepository } from './infrastructure/persistence/json-f
 import { PostgresKnowledgeRepository } from './infrastructure/persistence/postgres/postgres-knowledge-repository.js';
 import { JsonFileAdminUserRepository } from './infrastructure/persistence/json-file-admin-user-repository.js';
 import { PostgresAdminUserRepository } from './infrastructure/persistence/postgres/postgres-admin-user-repository.js';
-import { migrateAdminUsers, migrateDocuments } from './infrastructure/persistence/postgres/schema.js';
+import { JsonFileSettingsRepository } from './infrastructure/persistence/json-file-settings-repository.js';
+import { PostgresSettingsRepository } from './infrastructure/persistence/postgres/postgres-settings-repository.js';
+import { migrateAdminUsers, migrateDocuments, migrateSettings } from './infrastructure/persistence/postgres/schema.js';
 import { ExtractiveAnswerGenerator } from './infrastructure/generation/extractive-answer-generator.js';
 import { AnthropicAnswerGenerator } from './infrastructure/generation/anthropic-answer-generator.js';
 import { OpenAiCompatibleAnswerGenerator } from './infrastructure/generation/openai-compatible-answer-generator.js';
@@ -44,6 +46,7 @@ export async function createDependencies(env, { logger = console } = {}) {
   const closers = [];
   let repository;
   let adminUsers;
+  let settings;
   let retriever;
   let mode = 'tfidf';
 
@@ -62,8 +65,10 @@ export async function createDependencies(env, { logger = console } = {}) {
     try {
       await migrateDocuments(pool);
       await migrateAdminUsers(pool);
+      await migrateSettings(pool);
       repository = new PostgresKnowledgeRepository(pool);
       adminUsers = new PostgresAdminUserRepository(pool);
+      settings = new PostgresSettingsRepository(pool);
       if (embedder) {
         // Layanan embedding (mis. kontainer TEI) bisa belum siap saat aplikasi start, terutama saat mengunduh model pertama kali.
         const waitSeconds = env.EMBEDDING_STARTUP_WAIT_SECONDS === undefined || env.EMBEDDING_STARTUP_WAIT_SECONDS === '' ? 90 : Number(env.EMBEDDING_STARTUP_WAIT_SECONDS);
@@ -90,6 +95,7 @@ export async function createDependencies(env, { logger = console } = {}) {
     if (embedder) throw new Error('EMBEDDING_MODEL membutuhkan DATABASE_URL (PostgreSQL + pgvector)');
     repository = new JsonFileKnowledgeRepository(path.join(env.DATA_DIR ?? './data', 'knowledge.json'));
     adminUsers = new JsonFileAdminUserRepository(path.join(env.DATA_DIR ?? './data', 'admin-users.json'));
+    settings = new JsonFileSettingsRepository(path.join(env.DATA_DIR ?? './data', 'settings.json'));
     retriever = new TfidfRetriever();
   }
 
@@ -122,6 +128,8 @@ export async function createDependencies(env, { logger = console } = {}) {
   return {
     repository,
     adminUsers,
+    settings,
+    assistantDefaults: persona,
     retriever,
     answerGenerator,
     minScore,

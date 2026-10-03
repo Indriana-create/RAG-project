@@ -6,12 +6,14 @@ import { GetHistory, ClearHistory } from './application/use-cases/manage-history
 import {
   ChangeOwnPassword, CreateAdminUser, DeleteAdminUser, ListAdminUsers, LoginAdmin, ResetAdminPassword, ResolveAdminSession, SeedAdminUser,
 } from './application/use-cases/admin-auth.js';
+import { AssistantSettingsService } from './application/use-cases/assistant-settings.js';
 import { SearchKnowledge } from './application/use-cases/search-knowledge.js';
 import { ListKnowledge, GetKnowledge, SaveKnowledge, DeleteKnowledge } from './application/use-cases/manage-knowledge.js';
 import { FileDocumentSource } from './infrastructure/knowledge/file-document-source.js';
 import { InMemoryChatHistory } from './infrastructure/persistence/in-memory-chat-history.js';
 import { ChatController } from './interface/http/chat-controller.js';
 import { AdminKnowledgeController } from './interface/http/admin-knowledge-controller.js';
+import { AdminAssistantController } from './interface/http/admin-assistant-controller.js';
 import { AdminAccountController } from './interface/http/admin-account-controller.js';
 import { createTokenAuthenticator } from './interface/http/admin-auth.js';
 import { ScryptPasswordHasher } from './infrastructure/security/scrypt-password-hasher.js';
@@ -24,13 +26,14 @@ import { createServer } from './interface/http/server.js';
  * Implementasi konkret (file/PostgreSQL, TF-IDF/pgvector, LLM) dipilih di bootstrap.js.
  */
 export async function buildApp({
-  repository, adminUsers, retriever, answerGenerator, minScore, seed = true, seedDir, publicDir,
+  repository, adminUsers, settings, assistantDefaults = { name: 'Asisten Virtual', style: '' }, retriever, answerGenerator, minScore, seed = true, seedDir, publicDir,
   adminToken, bootstrapAdmin = {}, sessionSecret = randomBytes(32).toString('hex'), sessionTtlSeconds = 12 * 3600,
   trustProxy = false, cookieSecure = 'auto', hasher = new ScryptPasswordHasher(), throttle = new InMemoryLoginThrottle(),
 }) {
   const history = new InMemoryChatHistory();
   const reindex = new ReindexKnowledge({ repository, retriever });
 
+  const assistant = new AssistantSettingsService({ repository: settings, defaults: assistantDefaults });
   const sessions = new HmacSessionTokens({ secret: sessionSecret, ttlSeconds: sessionTtlSeconds });
   const seededAdmin = await new SeedAdminUser({ users: adminUsers, hasher, newId: randomUUID }).execute(bootstrapAdmin);
 
@@ -40,7 +43,7 @@ export async function buildApp({
   const server = createServer({
     chat: new ChatController({
       askQuestion: new AskQuestion({
-        retriever, answerGenerator, history, minScore,
+        retriever, answerGenerator, history, minScore, personas: assistant,
         topics: { titles: async () => (await repository.list()).filter((d) => d.enabled).map((d) => d.title) },
       }),
       getHistory: new GetHistory({ history }),
@@ -53,6 +56,7 @@ export async function buildApp({
       deleteKnowledge: new DeleteKnowledge({ repository, reindex }),
       searchKnowledge: new SearchKnowledge({ retriever, minScore }),
     }),
+    adminAssistant: new AdminAssistantController({ assistant }),
     adminAccounts: new AdminAccountController({
       loginAdmin: new LoginAdmin({ users: adminUsers, hasher, sessions, throttle }),
       changeOwnPassword: new ChangeOwnPassword({ users: adminUsers, hasher, sessions }),

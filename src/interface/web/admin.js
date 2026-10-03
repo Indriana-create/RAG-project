@@ -37,6 +37,7 @@ const sessionExpired = () => showLogin('Sesi berakhir, silakan masuk lagi.');
 async function refresh() {
   try {
     render(await api.list());
+    loadAssistant();
   } catch (err) {
     if (err.status === 401) sessionExpired();
     else toast(err.message);
@@ -277,6 +278,37 @@ $('userForm').addEventListener('submit', async (e) => {
 });
 
 $('add').addEventListener('click', () => openEditor());
+// ---------- Pengaturan asisten ----------
+async function loadAssistant() {
+  try {
+    const a = await api.assistant();
+    $('asName').value = a.name;
+    $('asStyle').value = a.style;
+    $('asAbout').value = a.about;
+    $('asMeta').textContent = a.isDefault
+      ? 'Belum pernah diubah dari halaman ini: memakai nilai bawaan dari konfigurasi server.'
+      : `Terakhir diubah oleh @${a.updatedBy} pada ${new Date(a.updatedAt).toLocaleString('id-ID')}.`;
+  } catch (err) {
+    if (err.status === 401) sessionExpired();
+  }
+}
+
+$('assistantForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  $('asSave').disabled = true;
+  $('asError').textContent = '';
+  try {
+    await api.saveAssistant({ name: $('asName').value, style: $('asStyle').value, about: $('asAbout').value });
+    toast('Pengaturan asisten disimpan');
+    await loadAssistant();
+  } catch (err) {
+    if (err.status === 401) sessionExpired();
+    else $('asError').textContent = err.message;
+  } finally {
+    $('asSave').disabled = false;
+  }
+});
+
 $('searchForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const info = $('searchInfo');

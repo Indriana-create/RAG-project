@@ -54,6 +54,22 @@
       <ul id="list" class="list"></ul>
       <p id="empty" class="card muted" hidden>Belum ada knowledge. Klik “Tambah knowledge” atau unggah file .md / .txt.</p>
 
+      <details class="card tester" id="assistantBox">
+        <summary>Pengaturan asisten <span class="muted">— nama, gaya bicara, dan keterangan tentang diri asisten</span></summary>
+        <form id="assistantForm">
+          <label for="asName">Nama asisten</label>
+          <input id="asName" maxlength="60" placeholder="Mis. Lumi dari Lumicore">
+          <label for="asStyle">Gaya bicara (instruksi tambahan)</label>
+          <textarea id="asStyle" rows="4" maxlength="1000" placeholder='Mis. Selalu ramah. Sapa pengguna dengan "Kak". Pahami dan jawab dalam bahasa apa pun yang dipakai pengguna.'></textarea>
+          <label for="asAbout">Tentang asisten (hanya disebut bila pengguna menanyakannya)</label>
+          <textarea id="asAbout" rows="4" maxlength="2000" placeholder="Mis. Anda ditenagai model Qwen3.5-9B yang berjalan di server perusahaan, dan dapat berbahasa Indonesia, Inggris, serta bahasa lain."></textarea>
+          <p class="muted">Isian ini mengatur <strong>perilaku</strong> asisten dan berlaku langsung tanpa restart. Informasi layanan atau produk (jam buka, harga, kebijakan) tetap diisi di <strong>Knowledge</strong> di atas, bukan di sini.</p>
+          <p id="asMeta" class="muted"></p>
+          <p id="asError" class="error" role="alert"></p>
+          <button class="primary" type="submit" id="asSave">Simpan pengaturan</button>
+        </form>
+      </details>
+
       <details class="card tester">
         <summary>Uji pencarian <span class="muted">— lihat chunk yang diambil dan skornya (tanpa LLM)</span></summary>
         <form id="searchForm" class="search-row">

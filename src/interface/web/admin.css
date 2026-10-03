@@ -60,3 +60,4 @@ h3 { margin: 18px 0 0; font-size: 1rem; }
 .badge.me { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
 dialog p.muted { font-size: .85rem; margin-top: 4px; }
 @media (max-width: 600px) { .grid2 { grid-template-columns: 1fr; } .account { align-items: flex-start; } }
+#assistantForm textarea { font-family: inherit; font-size: .95rem; min-height: 100px; }

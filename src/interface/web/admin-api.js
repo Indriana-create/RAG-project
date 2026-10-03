@@ -23,6 +23,9 @@ export function createAdminApi() {
     createUser: (data) => request('/api/admin/users', json('POST', data)),
     removeUser: (id) => request(user(id), { method: 'DELETE' }),
     resetPassword: (id, newPassword) => request(`${user(id)}/password`, json('POST', { newPassword })),
+    // pengaturan asisten
+    assistant: () => request('/api/admin/assistant'),
+    saveAssistant: (data) => request('/api/admin/assistant', json('PUT', data)),
     // knowledge
     list: () => request('/api/admin/knowledge').then((r) => r.items),
     get: (id) => request(knowledge(id)),

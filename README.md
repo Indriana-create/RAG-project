@@ -50,8 +50,8 @@ Implementasi dipilih otomatis di `src/bootstrap.js` dari variabel berikut:
 | `EMBEDDING_MODEL` (+ `EMBEDDING_BASE_URL`) | Pencarian berdasarkan makna via pgvector (lihat [Pencarian berdasarkan makna](#pencarian-berdasarkan-makna-embedding)) | TF-IDF (cocok kata) |
 | `EMBEDDING_STARTUP_WAIT_SECONDS` | Lama menunggu layanan embedding saat start | 90 |
 | `LLM_BASE_URL` + `LLM_MODEL` | LLM lokal OpenAI-compatible | `ANTHROPIC_API_KEY` → Claude, selain itu ekstraktif |
-| `ASSISTANT_NAME` | Nama asisten yang memperkenalkan diri (mis. `Lumi dari Lumicore`) | `Asisten Virtual` |
-| `ASSISTANT_STYLE` | Tambahan gaya bicara (mis. `Sapa pengguna dengan "Kak".`) | kosong |
+| `ASSISTANT_NAME` | Nama awal asisten (setelah disimpan dari halaman admin, yang dipakai nilai dari sana) | `Asisten Virtual` |
+| `ASSISTANT_STYLE` | Gaya bicara awal (idem) | kosong |
 | `MIN_SCORE` | Ambang kemiripan minimum; **kalibrasi** bila memakai embedding | 0.05 (TF-IDF) / 0.35 sementara (vektor) |
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD` | Akun admin **pertama** (hanya dipakai bila belum ada akun) | `admin` + password acak dicetak sekali di log |
 | `ADMIN_TOKEN` | Token API untuk otomasi (n8n); tidak untuk login manusia | API token nonaktif |
@@ -161,7 +161,9 @@ Chatbot bersikap seperti CS yang ramah, tetapi **fakta hanya boleh berasal dari 
 | Pertanyaan lanjutan pendek ("kalau ke Papua?") | Pencarian diulang bersama pertanyaan sebelumnya, jadi konteks percakapan terbawa. |
 | LLM sedang mati dan tidak ada knowledge yang cocok | Pesan tetap berisi daftar topik (percakapan tidak error). |
 
-Aturan di prompt: tidak mengaku manusia, tidak menyebut kata "dokumen/konteks", menyapa hanya di pesan pertama, dan mengabaikan perintah yang disisipkan di pesan pengguna atau isi knowledge. Nama dan gaya diatur lewat `ASSISTANT_NAME` / `ASSISTANT_STYLE` (tanpa mengubah kode). Pada model kecil, aturan "jangan menebak" tidak bisa dijamin 100%; uji dengan pertanyaan yang jawabannya sengaja tidak ada di knowledge, dan perketat `ASSISTANT_STYLE` bila perlu.
+**Di mana menulis apa:** *perilaku* asisten (nama, gaya, siapa dirinya) di **Pengaturan asisten**; *fakta layanan* (jam buka, harga, kebijakan) di **Knowledge**. Instruksi yang ditulis di Knowledge tidak mengubah perilaku, sebab isi Knowledge diperlakukan sebagai data, bukan perintah.
+
+Aturan di prompt: tidak mengaku manusia, tidak menyebut kata "dokumen/konteks", menyapa hanya di pesan pertama, dan mengabaikan perintah yang disisipkan di pesan pengguna atau isi knowledge. Nama, gaya, dan keterangan tentang diri asisten diatur dari **Admin → Pengaturan asisten** (berlaku langsung tanpa restart; tercatat siapa yang terakhir mengubah). `ASSISTANT_NAME` / `ASSISTANT_STYLE` hanya nilai awal sebelum pernah disimpan dari halaman itu. Pada model kecil, aturan "jangan menebak" tidak bisa dijamin 100%; uji dengan pertanyaan yang jawabannya sengaja tidak ada di knowledge, dan perketat `ASSISTANT_STYLE` bila perlu.
 
 ## Akun admin
 
@@ -197,6 +199,7 @@ Endpoint knowledge dapat diakses dengan sesi login **atau** `Authorization: Bear
 | PUT/PATCH | `/api/admin/knowledge/:id` | ubah sebagian `{title?, content?, enabled?}` |
 | DELETE | `/api/admin/knowledge/:id` | hapus |
 | POST | `/api/admin/search` | uji pencarian `{query}` → chunk + skor |
+| GET/PUT | `/api/admin/assistant` | pengaturan asisten `{name, style, about}` (sesi) |
 | POST | `/api/admin/login` · `/logout` | masuk `{username, password}` / keluar (sesi) |
 | GET | `/api/admin/me` | akun yang sedang login (sesi) |
 | POST | `/api/admin/password` | ubah password sendiri `{currentPassword, newPassword}` (sesi) |
@@ -241,7 +244,7 @@ Mengganti komponen cukup menulis adapter baru dan mengubah `bootstrap.js` — us
 ## Pengujian
 
 ```bash
-npm test                                                   # 64 tes; 7 tes PostgreSQL otomatis dilewati
+npm test                                                   # 70 tes; 8 tes PostgreSQL otomatis dilewati
 TEST_DATABASE_URL=postgres://user:pass@localhost:5432/ragtest npm test   # + tes PostgreSQL/pgvector
 ```
 

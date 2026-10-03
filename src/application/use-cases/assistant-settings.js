@@ -1,0 +1,35 @@
+import { createAssistantSettings, resolvePersona } from '../../domain/assistant-settings.js';
+
+const KEY = 'assistant';
+
+/**
+ * Pengaturan asisten yang dapat diubah admin tanpa restart. Hasilnya dipakai tiap giliran chat (`current()`).
+ * Cache di memori; satu instance aplikasi sehingga cukup diperbarui saat `update()`.
+ */
+export class AssistantSettingsService {
+  #cache;
+
+  constructor({ repository, defaults, now = () => new Date() }) { Object.assign(this, { repository, defaults, now }); }
+
+  async #saved() {
+    if (this.#cache === undefined) this.#cache = (await this.repository.get(KEY)) ?? null;
+    return this.#cache;
+  }
+
+  /** Persona yang dipakai chat sekarang: { name, style, about }. */
+  async current() { return resolvePersona((await this.#saved())?.value, this.defaults); }
+
+  /** Untuk halaman admin: persona + keterangan siapa/kapan terakhir mengubah. */
+  async get() {
+    const saved = await this.#saved();
+    return { ...resolvePersona(saved?.value, this.defaults), isDefault: !saved, updatedAt: saved?.updatedAt ?? null, updatedBy: saved?.updatedBy ?? null };
+  }
+
+  async update({ name, style, about }, updatedBy) {
+    const value = createAssistantSettings({ name, style, about });
+    const record = { value, updatedAt: this.now().toISOString(), updatedBy };
+    await this.repository.set(KEY, record);
+    this.#cache = record;
+    return this.get();
+  }
+}

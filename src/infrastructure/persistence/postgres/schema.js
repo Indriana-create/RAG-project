@@ -24,6 +24,16 @@ export async function migrateAdminUsers(pool) {
     )`);
 }
 
+export async function migrateSettings(pool) {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key        text PRIMARY KEY,
+      value      jsonb       NOT NULL,
+      updated_at timestamptz NOT NULL DEFAULT now(),
+      updated_by text
+    )`);
+}
+
 /**
  * Tabel chunk + vektor. Isinya TURUNAN dari knowledge_documents, jadi aman dibuat
  * ulang bila dimensi embedding berubah (mis. ganti model embedding).
