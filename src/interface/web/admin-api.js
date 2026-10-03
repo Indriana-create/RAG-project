@@ -1,3 +1,5 @@
+import { t } from './i18n.js';
+
 /** Klien API admin — satu-satunya modul yang mengenal HTTP untuk halaman admin. Sesi memakai cookie HttpOnly, bukan token di JS. */
 export function createAdminApi() {
   async function request(path, options = {}) {
@@ -5,7 +7,7 @@ export function createAdminApi() {
     if (res.status === 204) return null;
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      throw Object.assign(new Error(data.error ?? 'Permintaan gagal'), { status: res.status, retryAfter: Number(res.headers.get('retry-after')) || 0 });
+      throw Object.assign(new Error(data.error ?? t('common.requestFailed')), { status: res.status, retryAfter: Number(res.headers.get('retry-after')) || 0 });
     }
     return data;
   }

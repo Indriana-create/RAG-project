@@ -246,7 +246,7 @@ Mengganti komponen cukup menulis adapter baru dan mengubah `bootstrap.js` — us
 ## Pengujian
 
 ```bash
-npm test                                                   # 76 tes; 8 tes PostgreSQL otomatis dilewati
+npm test                                                   # 80 tes; 8 tes PostgreSQL otomatis dilewati
 TEST_DATABASE_URL=postgres://user:pass@localhost:5432/ragtest npm test   # + tes PostgreSQL/pgvector
 ```
 
@@ -263,3 +263,7 @@ TEST_DATABASE_URL=postgres://user:pass@localhost:5432/ragtest npm test   # + tes
 ## Cloudflare dan cache
 
 Server mengirim `Cache-Control: no-store` untuk semua halaman dan berkas statis, supaya Cloudflare tidak menyajikan `admin.js`/`app.js` versi lama setelah aplikasi diperbarui. Bila setelah update halaman terasa tidak berubah (mis. tombol Simpan hanya memuat ulang halaman), buka Cloudflare → **Caching → Configuration → Purge Everything**, lalu muat ulang peramban dengan Ctrl+Shift+R.
+
+## Bahasa antarmuka (ID / EN)
+
+Halaman chat dan admin punya pilihan bahasa **ID | EN** di pojok kanan atas. Pilihan disimpan di peramban; tanpa pilihan, bahasa mengikuti peramban (id → Indonesia, lainnya → English). Semua teks ada di `src/interface/web/i18n.js` (dua kamus); tes memastikan kedua bahasa selalu punya kunci yang sama dan tidak ada teks yang tertinggal. Yang **tidak** ikut diterjemahkan: pesan error dari server (mis. validasi) dan isi knowledge. Bahasa jawaban chatbot mengikuti bahasa pertanyaan pengguna lewat "Gaya bicara" di Pengaturan asisten.

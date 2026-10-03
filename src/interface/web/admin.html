@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="id">
+<html lang="id" data-title-key="admin.title">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
-  <title>Admin Knowledge</title>
+  <title>LumiAssist Admin</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%278%27 fill=%27%235b5bf0%27/%3E%3C/svg%3E">
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/admin.css">
@@ -12,44 +12,47 @@
 <body class="admin-body">
   <main class="admin">
     <header class="admin-top">
-      <div class="brand"><img class="wordmark" src="/logo.png" alt="Lumicore" width="136" height="24"><div class="brand-text"><h1>Admin Knowledge</h1><p>Kelola dokumen yang dipakai chatbot</p></div></div>
-      <nav><a href="/">← Chatbot</a></nav>
+      <div class="brand"><img class="wordmark" src="/logo.png" alt="Lumicore" width="136" height="24"><div class="brand-text"><h1 data-i18n="admin.title">LumiAssist Admin</h1><p data-i18n="admin.tagline">Kelola pengetahuan dan pengaturan asisten</p></div></div>
+      <nav>
+        <div class="lang-switch" role="group" data-i18n-aria-label="lang.label" aria-label="Bahasa"><button type="button" data-lang="id" aria-pressed="true">ID</button><button type="button" data-lang="en" aria-pressed="false">EN</button></div>
+        <a href="/" data-i18n="admin.backToChat">← Chatbot</a>
+      </nav>
     </header>
 
     <section id="login" class="card" hidden>
-      <h2>Masuk admin</h2>
+      <h2 data-i18n="login.title">Masuk admin</h2>
       <form id="loginForm">
-        <label for="loginUser">Username</label>
+        <label for="loginUser" data-i18n="login.username">Username</label>
         <input id="loginUser" autocomplete="username" autocapitalize="none" spellcheck="false" required>
-        <label for="loginPass">Password</label>
+        <label for="loginPass" data-i18n="login.password">Password</label>
         <div class="pw">
           <input id="loginPass" type="password" autocomplete="current-password" required>
-          <button type="button" class="ghost sm" data-toggle="loginPass" aria-label="Tampilkan password">Lihat</button>
+          <button type="button" class="ghost sm" data-toggle="loginPass" data-i18n="common.show">Lihat</button>
         </div>
         <p id="loginError" class="error" role="alert"></p>
-        <button class="primary" type="submit" id="loginBtn">Masuk</button>
+        <button class="primary" type="submit" id="loginBtn" data-i18n="login.submit">Masuk</button>
       </form>
-      <p class="switch muted">Belum punya akun? <button type="button" class="link" id="showRegister">Daftar</button></p>
+      <p class="auth-switch muted"><span data-i18n="login.noAccount">Belum punya akun?</span> <button type="button" class="link" id="showRegister" data-i18n="login.register">Daftar</button></p>
     </section>
 
     <section id="register" class="card" hidden>
-      <h2>Daftar akun</h2>
-      <p class="muted">Setelah mendaftar, akun bisa dipakai setelah disetujui oleh admin. Akun yang disetujui dapat melihat dan mengubah knowledge yang sama.</p>
+      <h2 data-i18n="reg.title">Daftar akun</h2>
+      <p class="muted" data-i18n="reg.intro">Setelah mendaftar, akun bisa dipakai setelah disetujui oleh admin. Akun yang disetujui dapat melihat dan mengubah knowledge yang sama.</p>
       <form id="registerForm">
-        <label for="regUser">Username (3–32 karakter: huruf kecil, angka, titik, garis bawah, tanda hubung)</label>
+        <label for="regUser" data-i18n="reg.username">Username (3–32 karakter: huruf kecil, angka, titik, garis bawah, tanda hubung)</label>
         <input id="regUser" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="32" required>
-        <label for="regDisplay">Nama tampilan (opsional)</label>
+        <label for="regDisplay" data-i18n="reg.display">Nama tampilan (opsional)</label>
         <input id="regDisplay" autocomplete="name" maxlength="60">
-        <label for="regPass">Password (minimal 8 karakter)</label>
+        <label for="regPass" data-i18n="reg.password">Password (minimal 8 karakter)</label>
         <div class="pw">
           <input id="regPass" type="password" autocomplete="new-password" minlength="8" maxlength="128" required>
-          <button type="button" class="ghost sm" data-toggle="regPass" aria-label="Tampilkan password">Lihat</button>
+          <button type="button" class="ghost sm" data-toggle="regPass" data-i18n="common.show">Lihat</button>
         </div>
         <p id="regError" class="error" role="alert"></p>
         <p id="regOk" class="ok" role="status"></p>
-        <button class="primary" type="submit" id="regBtn">Daftar</button>
+        <button class="primary" type="submit" id="regBtn" data-i18n="reg.submit">Daftar</button>
       </form>
-      <p class="switch muted">Sudah punya akun? <button type="button" class="link" id="showLogin">Masuk</button></p>
+      <p class="auth-switch muted"><span data-i18n="reg.haveAccount">Sudah punya akun?</span> <button type="button" class="link" id="showLogin" data-i18n="reg.login">Masuk</button></p>
     </section>
 
     <section id="panel" hidden>
@@ -57,46 +60,46 @@
         <div class="who">
           <span class="avatar" id="avatar" aria-hidden="true"></span>
           <div>
-            <small class="muted">Masuk sebagai</small>
+            <small class="muted" data-i18n="panel.signedInAs">Masuk sebagai</small>
             <div><strong id="whoName"></strong> <span class="muted" id="whoHandle"></span></div>
           </div>
         </div>
         <div class="who-actions">
-          <button id="openProfile" class="ghost" type="button">Edit profil</button>
-          <button id="openPassword" class="ghost" type="button">Ubah password</button>
-          <button id="openUsers" class="ghost" type="button">Kelola admin <span id="pendingCount" class="badge pending" hidden></span></button>
-          <button id="logout" class="ghost" type="button">Keluar</button>
+          <button id="openProfile" class="ghost" type="button" data-i18n="panel.editProfile">Edit profil</button>
+          <button id="openPassword" class="ghost" type="button" data-i18n="panel.changePassword">Ubah password</button>
+          <button id="openUsers" class="ghost" type="button"><span data-i18n="panel.manageAdmins">Kelola admin</span> <span id="pendingCount" class="badge pending" hidden></span></button>
+          <button id="logout" class="ghost" type="button" data-i18n="panel.logout">Keluar</button>
         </div>
       </div>
 
       <div class="toolbar">
         <p id="summary" class="muted"></p>
-        <button id="add" class="primary" type="button">+ Tambah knowledge</button>
+        <button id="add" class="primary" type="button" data-i18n="panel.add">+ Tambah knowledge</button>
       </div>
       <ul id="list" class="list"></ul>
-      <p id="empty" class="card muted" hidden>Belum ada knowledge. Klik “Tambah knowledge” atau unggah file .md / .txt.</p>
+      <p id="empty" class="card muted" data-i18n="panel.empty" hidden>Belum ada knowledge. Klik “Tambah knowledge” atau unggah file .md / .txt.</p>
 
       <details class="card tester" id="assistantBox">
-        <summary>Pengaturan asisten <span class="muted">— nama, gaya bicara, dan keterangan tentang diri asisten</span></summary>
+        <summary><span data-i18n="as.summary">Pengaturan asisten</span> <span class="muted" data-i18n="as.summaryHint">— nama, gaya bicara, dan keterangan tentang diri asisten</span></summary>
         <form id="assistantForm">
-          <label for="asName">Nama asisten</label>
-          <input id="asName" maxlength="60" placeholder="Mis. Lumi dari Lumicore">
-          <label for="asStyle">Gaya bicara (instruksi tambahan)</label>
-          <textarea id="asStyle" rows="4" maxlength="1000" placeholder='Mis. Selalu ramah. Sapa pengguna dengan "Kak". Pahami dan jawab dalam bahasa apa pun yang dipakai pengguna.'></textarea>
-          <label for="asAbout">Tentang asisten (hanya disebut bila pengguna menanyakannya)</label>
-          <textarea id="asAbout" rows="4" maxlength="2000" placeholder="Mis. Anda ditenagai model Qwen3.5-9B yang berjalan di server perusahaan, dan dapat berbahasa Indonesia, Inggris, serta bahasa lain."></textarea>
-          <p class="muted">Isian ini mengatur <strong>perilaku</strong> asisten dan berlaku langsung tanpa restart. Informasi layanan atau produk (jam buka, harga, kebijakan) tetap diisi di <strong>Knowledge</strong> di atas, bukan di sini.</p>
+          <label for="asName" data-i18n="as.name">Nama asisten</label>
+          <input id="asName" maxlength="60" placeholder="Mis. Lumi dari Lumicore" data-i18n-placeholder="as.namePh">
+          <label for="asStyle" data-i18n="as.style">Gaya bicara (instruksi tambahan)</label>
+          <textarea id="asStyle" rows="4" maxlength="1000" placeholder='Mis. Selalu ramah. Sapa pengguna dengan "Kak". Pahami dan jawab dalam bahasa apa pun yang dipakai pengguna.' data-i18n-placeholder="as.stylePh"></textarea>
+          <label for="asAbout" data-i18n="as.about">Tentang asisten (hanya disebut bila pengguna menanyakannya)</label>
+          <textarea id="asAbout" rows="4" maxlength="2000" placeholder="Mis. Anda ditenagai model Qwen3.5-9B yang berjalan di server perusahaan, dan dapat berbahasa Indonesia, Inggris, serta bahasa lain." data-i18n-placeholder="as.aboutPh"></textarea>
+          <p class="muted" data-i18n-html="as.hint">Isian ini mengatur <strong>perilaku</strong> asisten dan berlaku langsung tanpa restart. Informasi layanan atau produk (jam buka, harga, kebijakan) tetap diisi di <strong>Knowledge</strong> di atas, bukan di sini.</p>
           <p id="asMeta" class="muted"></p>
           <p id="asError" class="error" role="alert"></p>
-          <button class="primary" type="submit" id="asSave">Simpan pengaturan</button>
+          <button class="primary" type="submit" id="asSave" data-i18n="as.save">Simpan pengaturan</button>
         </form>
       </details>
 
       <details class="card tester">
-        <summary>Uji pencarian <span class="muted">— lihat chunk yang diambil dan skornya (tanpa LLM)</span></summary>
+        <summary><span data-i18n="search.summary">Uji pencarian</span> <span class="muted" data-i18n="search.hint">— lihat chunk yang diambil dan skornya (tanpa LLM)</span></summary>
         <form id="searchForm" class="search-row">
-          <input id="searchQuery" placeholder="Tulis pertanyaan uji, mis. berapa lama garansi?" maxlength="1000" required>
-          <button class="primary" type="submit">Cari</button>
+          <input id="searchQuery" placeholder="Tulis pertanyaan uji, mis. berapa lama garansi?" data-i18n-placeholder="search.ph" maxlength="1000" required>
+          <button class="primary" type="submit" data-i18n="search.submit">Cari</button>
         </form>
         <p id="searchInfo" class="muted"></p>
         <ol id="searchResults" class="hits"></ol>
@@ -106,73 +109,73 @@
 
   <dialog id="editor">
     <form id="editorForm">
-      <h2 id="editorTitle">Tambah knowledge</h2>
-      <label for="docTitle">Judul</label>
+      <h2 id="editorTitle" data-i18n="ed.add">Tambah knowledge</h2>
+      <label for="docTitle" data-i18n="ed.title">Judul</label>
       <input id="docTitle" maxlength="120" required>
-      <label for="docFile">Unggah file (.md / .txt, maks 1 MB)</label>
+      <label for="docFile" data-i18n="ed.file">Unggah file (.md / .txt, maks 1 MB)</label>
       <input id="docFile" type="file" accept=".md,.txt,text/plain,text/markdown">
-      <label for="docContent">Isi</label>
+      <label for="docContent" data-i18n="ed.content">Isi</label>
       <textarea id="docContent" rows="12" required></textarea>
-      <label class="check"><input id="docEnabled" type="checkbox" checked> Aktif (dipakai chatbot)</label>
+      <label class="check"><input id="docEnabled" type="checkbox" checked> <span data-i18n="ed.enabled">Aktif (dipakai chatbot)</span></label>
       <p id="editorError" class="error" role="alert"></p>
       <div class="actions">
-        <button class="ghost" type="button" id="cancel">Batal</button>
-        <button class="primary" type="submit" id="save">Simpan</button>
+        <button class="ghost" type="button" id="cancel" data-i18n="common.cancel">Batal</button>
+        <button class="primary" type="submit" id="save" data-i18n="ed.save">Simpan</button>
       </div>
     </form>
   </dialog>
 
   <dialog id="passwordDialog">
     <form id="passwordForm">
-      <h2 id="pwTitle">Ubah password</h2>
+      <h2 id="pwTitle" data-i18n="pw.change">Ubah password</h2>
       <p class="muted" id="pwHint">Minimal 8 karakter. Setelah diganti, perangkat lain yang masih login akan keluar otomatis.</p>
       <div id="pwCurrentRow">
-        <label for="pwCurrent">Password saat ini</label>
-        <div class="pw"><input id="pwCurrent" type="password" autocomplete="current-password"><button type="button" class="ghost sm" data-toggle="pwCurrent">Lihat</button></div>
+        <label for="pwCurrent" data-i18n="pw.current">Password saat ini</label>
+        <div class="pw"><input id="pwCurrent" type="password" autocomplete="current-password"><button type="button" class="ghost sm" data-toggle="pwCurrent" data-i18n="common.show">Lihat</button></div>
       </div>
-      <label for="pwNew">Password baru</label>
-      <div class="pw"><input id="pwNew" type="password" autocomplete="new-password" minlength="8" maxlength="128" required><button type="button" class="ghost sm" data-toggle="pwNew">Lihat</button></div>
-      <label for="pwConfirm">Ulangi password baru</label>
-      <div class="pw"><input id="pwConfirm" type="password" autocomplete="new-password" minlength="8" maxlength="128" required><button type="button" class="ghost sm" data-toggle="pwConfirm">Lihat</button></div>
+      <label for="pwNew" data-i18n="pw.new">Password baru</label>
+      <div class="pw"><input id="pwNew" type="password" autocomplete="new-password" minlength="8" maxlength="128" required><button type="button" class="ghost sm" data-toggle="pwNew" data-i18n="common.show">Lihat</button></div>
+      <label for="pwConfirm" data-i18n="pw.confirm">Ulangi password baru</label>
+      <div class="pw"><input id="pwConfirm" type="password" autocomplete="new-password" minlength="8" maxlength="128" required><button type="button" class="ghost sm" data-toggle="pwConfirm" data-i18n="common.show">Lihat</button></div>
       <p id="pwError" class="error" role="alert"></p>
       <div class="actions">
-        <button class="ghost" type="button" data-close="passwordDialog">Batal</button>
-        <button class="primary" type="submit" id="pwSave">Simpan password</button>
+        <button class="ghost" type="button" data-close="passwordDialog" data-i18n="common.cancel">Batal</button>
+        <button class="primary" type="submit" id="pwSave" data-i18n="pw.save">Simpan password</button>
       </div>
     </form>
   </dialog>
 
   <dialog id="profileDialog">
     <form id="profileForm">
-      <h2 id="pfTitle">Edit profil</h2>
-      <label for="pfDisplay">Nama tampilan</label>
+      <h2 id="pfTitle" data-i18n="pf.titleSelf">Edit profil</h2>
+      <label for="pfDisplay" data-i18n="pf.display">Nama tampilan</label>
       <input id="pfDisplay" autocomplete="name" maxlength="60" required>
-      <label for="pfUsername">Username (3–32 karakter: huruf kecil, angka, titik, garis bawah, tanda hubung)</label>
+      <label for="pfUsername" data-i18n="pf.username">Username (3–32 karakter: huruf kecil, angka, titik, garis bawah, tanda hubung)</label>
       <input id="pfUsername" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="32" required>
-      <p class="muted">Mengganti username tidak membuat siapa pun keluar dari sesinya; login berikutnya memakai username yang baru.</p>
+      <p class="muted" data-i18n="pf.note">Mengganti username tidak membuat siapa pun keluar dari sesinya; login berikutnya memakai username yang baru.</p>
       <p id="pfError" class="error" role="alert"></p>
       <div class="actions">
-        <button class="ghost" type="button" data-close="profileDialog">Batal</button>
-        <button class="primary" type="submit" id="pfSave">Simpan profil</button>
+        <button class="ghost" type="button" data-close="profileDialog" data-i18n="common.cancel">Batal</button>
+        <button class="primary" type="submit" id="pfSave" data-i18n="pf.save">Simpan profil</button>
       </div>
     </form>
   </dialog>
 
   <dialog id="usersDialog">
-    <h2>Akun admin</h2>
+    <h2 data-i18n="users.title">Akun admin</h2>
     <ul id="userList" class="list users"></ul>
     <form id="userForm">
-      <h3>Tambah admin</h3>
+      <h3 data-i18n="users.add">Tambah admin</h3>
       <div class="grid2">
-        <div><label for="newUsername">Username</label><input id="newUsername" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="32" required></div>
-        <div><label for="newDisplay">Nama tampilan (opsional)</label><input id="newDisplay" autocomplete="off" maxlength="60"></div>
+        <div><label for="newUsername" data-i18n="users.username">Username</label><input id="newUsername" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="32" required></div>
+        <div><label for="newDisplay" data-i18n="users.display">Nama tampilan (opsional)</label><input id="newDisplay" autocomplete="off" maxlength="60"></div>
       </div>
-      <label for="newPassword">Password awal (minimal 8 karakter)</label>
-      <div class="pw"><input id="newPassword" type="password" autocomplete="new-password" minlength="8" maxlength="128" required><button type="button" class="ghost sm" data-toggle="newPassword">Lihat</button></div>
+      <label for="newPassword" data-i18n="users.initialPassword">Password awal (minimal 8 karakter)</label>
+      <div class="pw"><input id="newPassword" type="password" autocomplete="new-password" minlength="8" maxlength="128" required><button type="button" class="ghost sm" data-toggle="newPassword" data-i18n="common.show">Lihat</button></div>
       <p id="userError" class="error" role="alert"></p>
       <div class="actions">
-        <button class="ghost" type="button" data-close="usersDialog">Tutup</button>
-        <button class="primary" type="submit" id="userSave">Tambah admin</button>
+        <button class="ghost" type="button" data-close="usersDialog" data-i18n="common.close">Tutup</button>
+        <button class="primary" type="submit" id="userSave" data-i18n="users.add">Tambah admin</button>
       </div>
     </form>
   </dialog>

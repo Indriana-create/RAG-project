@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="id">
+<html lang="id" data-title-key="chat.title">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -10,25 +10,28 @@
 <body>
   <div class="app">
     <header class="topbar">
-      <div class="brand"><img class="wordmark" src="/logo.png" alt="Lumicore" width="136" height="24"><div class="brand-text"><h1>LumiAssist</h1><p>Jawaban dari dokumen internal Anda</p></div></div>
-      <div class="actions-top"><a class="ghost" href="/admin.html">Admin</a><button id="clear" class="ghost" type="button">Percakapan baru</button></div>
+      <div class="brand"><img class="wordmark" src="/logo.png" alt="Lumicore" width="136" height="24"><div class="brand-text"><h1 data-i18n="chat.title">LumiAssist</h1><p data-i18n="chat.tagline">Cerdas, ramah, dan sesuai data resmi</p></div></div>
+      <div class="actions-top">
+        <div class="lang-switch" role="group" data-i18n-aria-label="lang.label" aria-label="Bahasa"><button type="button" data-lang="id" aria-pressed="true">ID</button><button type="button" data-lang="en" aria-pressed="false">EN</button></div>
+        <a class="ghost" href="/admin.html" data-i18n="chat.admin">Admin</a><button id="clear" class="ghost" type="button" data-i18n="chat.newChat">Percakapan baru</button>
+      </div>
     </header>
 
     <main id="messages" class="messages" aria-live="polite">
       <section id="welcome" class="welcome">
-        <h2>Halo! Apa yang ingin Anda ketahui?</h2>
+        <h2 data-i18n="chat.welcome">Halo! Apa yang ingin Anda ketahui?</h2>
         <div class="suggestions">
-          <button type="button">Berapa lama pengiriman ke luar Jawa?</button>
-          <button type="button">Bagaimana cara mengembalikan barang?</button>
-          <button type="button">Metode pembayaran apa saja yang tersedia?</button>
-          <button type="button">Kapan jam layanan dukungan?</button>
+          <button type="button" data-i18n="chat.s1">Berapa lama pengiriman ke luar Jawa?</button>
+          <button type="button" data-i18n="chat.s2">Bagaimana cara mengembalikan barang?</button>
+          <button type="button" data-i18n="chat.s3">Metode pembayaran apa saja yang tersedia?</button>
+          <button type="button" data-i18n="chat.s4">Kapan jam layanan dukungan?</button>
         </div>
       </section>
     </main>
 
     <form id="form" class="composer" autocomplete="off">
-      <textarea id="input" rows="1" maxlength="1000" placeholder="Tulis pertanyaan…" aria-label="Pertanyaan"></textarea>
-      <button id="send" type="submit" aria-label="Kirim">➤</button>
+      <textarea id="input" rows="1" maxlength="1000" placeholder="Tulis pertanyaan…" aria-label="Pertanyaan" data-i18n-placeholder="chat.placeholder" data-i18n-aria-label="chat.question"></textarea>
+      <button id="send" type="submit" aria-label="Kirim" data-i18n-aria-label="chat.send">➤</button>
     </form>
   </div>
   <script type="module" src="/app.js"></script>

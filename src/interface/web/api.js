@@ -1,9 +1,11 @@
+import { t } from './i18n.js';
+
 /** Klien API — satu-satunya modul frontend yang mengenal HTTP. */
 async function request(path, options) {
   const res = await fetch(path, { headers: { 'content-type': 'application/json' }, ...options });
   if (res.status === 204) return null;
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error ?? 'Permintaan gagal');
+  if (!res.ok) throw new Error(data.error ?? t('common.requestFailed'));
   return data;
 }
 
@@ -37,7 +39,7 @@ export const api = {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ sessionId, question }),
     });
-    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? 'Permintaan gagal');
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? t('common.requestFailed'));
 
     let message;
     for await (const event of readEvents(res.body)) {
@@ -45,7 +47,7 @@ export const api = {
       else if (event.type === 'done') message = event.message;
       else if (event.type === 'error') throw new Error(event.message);
     }
-    if (!message) throw new Error('Koneksi terputus sebelum jawaban selesai');
+    if (!message) throw new Error(t('chat.connectionLost'));
     return message;
   },
   history: (sessionId) => request(`/api/history/${sessionId}`),

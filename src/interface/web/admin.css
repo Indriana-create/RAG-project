@@ -66,5 +66,5 @@ dialog p.muted { font-size: .85rem; margin-top: 4px; }
 @media (prefers-color-scheme: dark) { .badge.pending { background: #3a2f10; border-color: #7a6320; color: #f1d98a; } }
 .ok { color: #1c7a3f; min-height: 1.2em; margin: 8px 0 0; }
 @media (prefers-color-scheme: dark) { .ok { color: #6fd29a; } }
-.switch { margin: 16px 0 0; }
+.auth-switch { margin: 16px 0 0; }
 button.link { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; cursor: pointer; text-decoration: underline; }

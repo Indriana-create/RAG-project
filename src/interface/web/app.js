@@ -1,4 +1,7 @@
 import { api } from './api.js';
+import { initI18n } from './i18n.js';
+
+initI18n();
 
 const $ = (id) => document.getElementById(id);
 const messagesEl = $('messages'), form = $('form'), input = $('input'), sendBtn = $('send');

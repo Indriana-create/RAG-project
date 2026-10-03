@@ -1,11 +1,20 @@
 import { createAdminApi } from './admin-api.js';
+import { applyTranslations, initI18n, locale, onLanguageChange, t } from './i18n.js';
 
 const $ = (id) => document.getElementById(id);
 const MAX_FILE = 1_000_000;
 let me = null;
 let editingId = null;
+let lastItems = [];
+let lastAssistant = null;
 let passwordTarget = null; // null = ubah password sendiri; {id, username} = reset password akun lain
 const api = createAdminApi();
+const fmt = (iso) => new Date(iso).toLocaleString(locale());
+const retryMessage = (err) => (err.status === 429
+  ? t('admin.retryIn', { message: err.message, minutes: Math.max(1, Math.ceil(err.retryAfter / 60)) })
+  : err.message);
+
+initI18n();
 
 function toast(message) {
   const el = $('toast');
@@ -34,7 +43,7 @@ function showPanel(user) {
   $('avatar').textContent = user.displayName.trim().charAt(0).toUpperCase() || '?';
 }
 
-const sessionExpired = () => showLogin('Sesi berakhir, silakan masuk lagi.');
+const sessionExpired = () => showLogin(t('admin.sessionExpired'));
 
 async function refresh() {
   try {
@@ -48,8 +57,9 @@ async function refresh() {
 }
 
 function render(items) {
+  lastItems = items;
   const active = items.filter((i) => i.enabled).length;
-  $('summary').textContent = `${active} aktif dari ${items.length} knowledge`;
+  $('summary').textContent = t('panel.summary', { active, total: items.length });
   $('empty').hidden = items.length > 0;
   const list = $('list');
   list.replaceChildren(...items.map(renderItem));
@@ -66,11 +76,11 @@ function renderItem(doc) {
   if (!doc.enabled) {
     const badge = document.createElement('span');
     badge.className = 'badge';
-    badge.textContent = 'Nonaktif';
+    badge.textContent = t('panel.inactive');
     h.append(badge);
   }
   const meta = document.createElement('p');
-  meta.textContent = `${doc.chars.toLocaleString('id-ID')} karakter · diubah ${new Date(doc.updatedAt).toLocaleString('id-ID')}`;
+  meta.textContent = t('panel.docMeta', { chars: doc.chars.toLocaleString(locale()), date: fmt(doc.updatedAt) });
   info.append(h, meta);
 
   const controls = document.createElement('div');
@@ -82,13 +92,13 @@ function renderItem(doc) {
   cb.type = 'checkbox';
   cb.setAttribute('role', 'switch');
   cb.checked = doc.enabled;
-  cb.setAttribute('aria-label', `Aktifkan ${doc.title}`);
-  cb.addEventListener('change', () => run(() => api.update(doc.id, { enabled: cb.checked }), cb.checked ? 'Knowledge diaktifkan' : 'Knowledge dinonaktifkan'));
+  cb.setAttribute('aria-label', t('panel.enableAria', { title: doc.title }));
+  cb.addEventListener('change', () => run(() => api.update(doc.id, { enabled: cb.checked }), cb.checked ? t('panel.enabledToast') : t('panel.disabledToast')));
   sw.append(cb, document.createElement('span'));
 
-  const edit = button('Edit', 'ghost', () => openEditor(doc.id));
-  const del = button('Hapus', 'ghost danger', () => {
-    if (confirm(`Hapus "${doc.title}"? Tindakan ini tidak bisa dibatalkan.`)) run(() => api.remove(doc.id), 'Knowledge dihapus');
+  const edit = button(t('common.edit'), 'ghost', () => openEditor(doc.id));
+  const del = button(t('common.delete'), 'ghost danger', () => {
+    if (confirm(t('panel.confirmDelete', { title: doc.title }))) run(() => api.remove(doc.id), t('panel.deletedToast'));
   });
   controls.append(sw, edit, del);
 
@@ -120,7 +130,7 @@ async function openEditor(id = null) {
   editingId = id;
   $('editorError').textContent = '';
   $('docFile').value = '';
-  $('editorTitle').textContent = id ? 'Edit knowledge' : 'Tambah knowledge';
+  $('editorTitle').textContent = id ? t('ed.edit') : t('ed.add');
   if (id) {
     try {
       const doc = await api.get(id);
@@ -149,9 +159,7 @@ $('loginForm').addEventListener('submit', async (e) => {
     showPanel(user);
     await refresh();
   } catch (err) {
-    $('loginError').textContent = err.status === 429
-      ? `${err.message} (coba lagi dalam ${Math.max(1, Math.ceil(err.retryAfter / 60))} menit)`
-      : err.message;
+    $('loginError').textContent = retryMessage(err);
     $('loginPass').select();
   } finally {
     $('loginBtn').disabled = false;
@@ -177,9 +185,7 @@ $('registerForm').addEventListener('submit', async (e) => {
     $('registerForm').reset();
     $('regOk').textContent = result.message;
   } catch (err) {
-    $('regError').textContent = err.status === 429
-      ? `${err.message} (coba lagi dalam ${Math.max(1, Math.ceil(err.retryAfter / 60))} menit)`
-      : err.message;
+    $('regError').textContent = retryMessage(err);
   } finally {
     $('regBtn').disabled = false;
   }
@@ -197,7 +203,7 @@ document.addEventListener('click', (e) => {
     const input = $(toggle.dataset.toggle);
     const show = input.type === 'password';
     input.type = show ? 'text' : 'password';
-    toggle.textContent = show ? 'Sembunyikan' : 'Lihat';
+    toggle.textContent = show ? t('common.hide') : t('common.show');
     return;
   }
   const close = e.target.closest('[data-close]');
@@ -205,19 +211,23 @@ document.addEventListener('click', (e) => {
 });
 
 // ---------- Ubah / reset password ----------
+function openPasswordDialogLabels() {
+  const isReset = Boolean(passwordTarget);
+  $('pwTitle').textContent = isReset ? t('pw.reset', { username: passwordTarget.username }) : t('pw.change');
+  $('pwHint').textContent = isReset ? t('pw.hintReset') : t('pw.hintChange');
+}
+
 function openPasswordDialog(target = null) {
   passwordTarget = target;
   $('passwordForm').reset();
   $('pwError').textContent = '';
   const isReset = Boolean(target);
-  $('pwTitle').textContent = isReset ? `Reset password @${target.username}` : 'Ubah password';
-  $('pwHint').textContent = isReset
-    ? 'Minimal 8 karakter. Akun itu akan keluar dari semua perangkat dan harus login dengan password baru.'
-    : 'Minimal 8 karakter. Setelah diganti, perangkat lain yang masih login akan keluar otomatis.';
+  $('pwTitle').textContent = isReset ? t('pw.reset', { username: target.username }) : t('pw.change');
+  $('pwHint').textContent = isReset ? t('pw.hintReset') : t('pw.hintChange');
   $('pwCurrentRow').hidden = isReset;
   $('pwCurrent').required = !isReset;
   for (const id of ['pwCurrent', 'pwNew', 'pwConfirm']) { $(id).type = 'password'; }
-  document.querySelectorAll('#passwordForm [data-toggle]').forEach((b) => { b.textContent = 'Lihat'; });
+  document.querySelectorAll('#passwordForm [data-toggle]').forEach((b) => { b.textContent = t('common.show'); });
   $('passwordDialog').showModal();
   (isReset ? $('pwNew') : $('pwCurrent')).focus();
 }
@@ -228,7 +238,7 @@ $('openPassword').addEventListener('click', () => openPasswordDialog());
 let profileTarget = null;
 function openProfileDialog(target) {
   profileTarget = target;
-  $('pfTitle').textContent = target.id === me.id ? 'Edit profil Anda' : `Edit profil @${target.username}`;
+  $('pfTitle').textContent = target.id === me.id ? t('pf.titleSelf') : t('pf.titleOther', { username: target.username });
   $('pfDisplay').value = target.displayName;
   $('pfUsername').value = target.username;
   $('pfError').textContent = '';
@@ -246,7 +256,7 @@ $('profileForm').addEventListener('submit', async (e) => {
     const updated = await api.updateUser(profileTarget.id, { displayName: $('pfDisplay').value, username: $('pfUsername').value });
     $('profileDialog').close();
     if (updated.id === me.id) showPanel(updated);
-    toast('Profil disimpan');
+    toast(t('pf.saved'));
     if ($('usersDialog').open) await renderUsers();
   } catch (err) {
     if (err.status === 401) { $('profileDialog').close(); $('usersDialog').close(); sessionExpired(); }
@@ -259,14 +269,14 @@ $('profileForm').addEventListener('submit', async (e) => {
 $('passwordForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const next = $('pwNew').value;
-  if (next.length < 8) return void ($('pwError').textContent = 'Password baru minimal 8 karakter');
-  if (next !== $('pwConfirm').value) return void ($('pwError').textContent = 'Konfirmasi password tidak sama');
+  if (next.length < 8) return void ($('pwError').textContent = t('pw.tooShort'));
+  if (next !== $('pwConfirm').value) return void ($('pwError').textContent = t('pw.mismatch'));
   $('pwSave').disabled = true;
   try {
     if (passwordTarget) await api.resetPassword(passwordTarget.id, next);
     else await api.changePassword($('pwCurrent').value, next);
     $('passwordDialog').close();
-    toast(passwordTarget ? `Password @${passwordTarget.username} direset` : 'Password berhasil diubah');
+    toast(passwordTarget ? t('pw.resetToast', { username: passwordTarget.username }) : t('pw.changedToast'));
   } catch (err) {
     if (err.status === 401) { $('passwordDialog').close(); sessionExpired(); }
     else $('pwError').textContent = err.message;
@@ -280,7 +290,7 @@ async function updatePendingCount() {
   try {
     const waiting = (await api.users()).filter((u) => u.status === 'pending').length;
     $('pendingCount').hidden = waiting === 0;
-    $('pendingCount').textContent = `${waiting} menunggu`;
+    $('pendingCount').textContent = t('panel.pending', { n: waiting });
   } catch { /* lencana hanya pelengkap */ }
 }
 
@@ -300,43 +310,43 @@ async function renderUsers() {
     if (u.id === me.id) {
       const badge = document.createElement('span');
       badge.className = 'badge me';
-      badge.textContent = 'Anda';
+      badge.textContent = t('users.you');
       h.append(badge);
     }
     const pending = u.status === 'pending';
     if (pending) {
       const badge = document.createElement('span');
       badge.className = 'badge pending';
-      badge.textContent = 'Menunggu persetujuan';
+      badge.textContent = t('users.pendingBadge');
       h.append(badge);
     }
     const meta = document.createElement('p');
     meta.textContent = pending
-      ? `Mendaftar ${new Date(u.createdAt).toLocaleString('id-ID')}`
-      : (u.lastLoginAt ? `Login terakhir ${new Date(u.lastLoginAt).toLocaleString('id-ID')}` : 'Belum pernah login');
+      ? t('users.registeredAt', { date: fmt(u.createdAt) })
+      : (u.lastLoginAt ? t('users.lastLogin', { date: fmt(u.lastLoginAt) }) : t('users.neverLogin'));
     info.append(h, meta);
     const controls = document.createElement('div');
     controls.className = 'controls';
     const failed = (err) => { if (err.status === 401) { $('usersDialog').close(); sessionExpired(); } else toast(err.message); };
     if (pending) {
       controls.append(
-        button('Setujui', 'primary', async () => {
-          try { await api.approveUser(u.id); toast(`@${u.username} disetujui`); await renderUsers(); updatePendingCount(); } catch (err) { failed(err); }
+        button(t('users.approve'), 'primary', async () => {
+          try { await api.approveUser(u.id); toast(t('users.approved', { username: u.username })); await renderUsers(); updatePendingCount(); } catch (err) { failed(err); }
         }),
-        button('Tolak', 'ghost danger', async () => {
-          if (!confirm(`Tolak dan hapus pendaftaran "${u.username}"?`)) return;
-          try { await api.removeUser(u.id); toast('Pendaftaran ditolak'); await renderUsers(); updatePendingCount(); } catch (err) { failed(err); }
+        button(t('users.reject'), 'ghost danger', async () => {
+          if (!confirm(t('users.rejectConfirm', { username: u.username }))) return;
+          try { await api.removeUser(u.id); toast(t('users.rejected')); await renderUsers(); updatePendingCount(); } catch (err) { failed(err); }
         }),
       );
     } else {
-      controls.append(button('Edit', 'ghost', () => openProfileDialog(u)));
+      controls.append(button(t('common.edit'), 'ghost', () => openProfileDialog(u)));
     }
     if (!pending && u.id !== me.id) {
       controls.append(
-        button('Reset password', 'ghost', () => openPasswordDialog({ id: u.id, username: u.username })),
-        button('Hapus', 'ghost danger', async () => {
-          if (!confirm(`Hapus akun "${u.username}"? Akun itu langsung keluar dari semua perangkat.`)) return;
-          try { await api.removeUser(u.id); toast('Akun dihapus'); await renderUsers(); } catch (err) { failed(err); }
+        button(t('users.resetPassword'), 'ghost', () => openPasswordDialog({ id: u.id, username: u.username })),
+        button(t('common.delete'), 'ghost danger', async () => {
+          if (!confirm(t('users.deleteConfirm', { username: u.username }))) return;
+          try { await api.removeUser(u.id); toast(t('users.deleted')); await renderUsers(); } catch (err) { failed(err); }
         }),
       );
     }
@@ -359,7 +369,7 @@ $('userForm').addEventListener('submit', async (e) => {
   try {
     await api.createUser({ username: $('newUsername').value, displayName: $('newDisplay').value, password: $('newPassword').value });
     $('userForm').reset();
-    toast('Admin ditambahkan');
+    toast(t('users.added'));
     await renderUsers();
   } catch (err) {
     if (err.status === 401) { $('usersDialog').close(); sessionExpired(); }
@@ -371,15 +381,20 @@ $('userForm').addEventListener('submit', async (e) => {
 
 $('add').addEventListener('click', () => openEditor());
 // ---------- Pengaturan asisten ----------
+function renderAssistantMeta() {
+  const a = lastAssistant;
+  if (!a) return;
+  $('asMeta').textContent = a.isDefault ? t('as.metaDefault') : t('as.metaBy', { user: a.updatedBy, date: fmt(a.updatedAt) });
+}
+
 async function loadAssistant() {
   try {
     const a = await api.assistant();
     $('asName').value = a.name;
     $('asStyle').value = a.style;
     $('asAbout').value = a.about;
-    $('asMeta').textContent = a.isDefault
-      ? 'Belum pernah diubah dari halaman ini: memakai nilai bawaan dari konfigurasi server.'
-      : `Terakhir diubah oleh @${a.updatedBy} pada ${new Date(a.updatedAt).toLocaleString('id-ID')}.`;
+    lastAssistant = a;
+    renderAssistantMeta();
   } catch (err) {
     if (err.status === 401) sessionExpired();
   }
@@ -391,7 +406,7 @@ $('assistantForm').addEventListener('submit', async (e) => {
   $('asError').textContent = '';
   try {
     await api.saveAssistant({ name: $('asName').value, style: $('asStyle').value, about: $('asAbout').value });
-    toast('Pengaturan asisten disimpan');
+    toast(t('as.saved'));
     await loadAssistant();
   } catch (err) {
     if (err.status === 401) sessionExpired();
@@ -404,12 +419,12 @@ $('assistantForm').addEventListener('submit', async (e) => {
 $('searchForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const info = $('searchInfo');
-  info.textContent = 'Mencari…';
+  info.textContent = t('search.searching');
   try {
     const { hits, minScore } = await api.search($('searchQuery').value);
     info.textContent = hits.length
-      ? `Ambang saat ini (MIN_SCORE): ${minScore}. Chunk di bawah ambang tidak dipakai chatbot.`
-      : 'Tidak ada hasil.';
+      ? t('search.info', { minScore })
+      : t('search.none');
     $('searchResults').replaceChildren(...hits.map(renderHit));
   } catch (err) {
     if (err.status === 401) return sessionExpired();
@@ -424,10 +439,10 @@ function renderHit(hit) {
   const head = document.createElement('div');
   head.className = 'hit-head';
   const title = document.createElement('strong');
-  title.textContent = `${hit.title} · chunk ${hit.chunk}`;
+  title.textContent = t('search.hitTitle', { title: hit.title, chunk: hit.chunk });
   const score = document.createElement('span');
   score.className = 'badge';
-  score.textContent = `skor ${hit.score} · ${hit.aboveThreshold ? 'dipakai' : 'di bawah ambang'}`;
+  score.textContent = t('search.hitScore', { score: hit.score, state: hit.aboveThreshold ? t('search.used') : t('search.below') });
   head.append(title, score);
   const text = document.createElement('p');
   text.textContent = hit.text.length > 240 ? `${hit.text.slice(0, 240)}…` : hit.text;
@@ -442,7 +457,7 @@ $('docFile').addEventListener('change', async (e) => {
   if (!file) return;
   if (file.size > MAX_FILE) {
     e.target.value = '';
-    $('editorError').textContent = 'File lebih dari 1 MB.';
+    $('editorError').textContent = t('ed.fileTooBig');
     return;
   }
   $('editorError').textContent = '';
@@ -460,7 +475,7 @@ $('editorForm').addEventListener('submit', async (e) => {
   try {
     await (editingId ? api.update(editingId, data) : api.create(data));
     $('editor').close();
-    toast('Knowledge disimpan');
+    toast(t('panel.savedToast'));
     await refresh();
   } catch (err) {
     if (err.status === 401) { $('editor').close(); sessionExpired(); }
@@ -468,6 +483,20 @@ $('editorForm').addEventListener('submit', async (e) => {
   } finally {
     $('save').disabled = false;
   }
+});
+
+// Ganti bahasa: gambar ulang bagian yang dibuat lewat JavaScript (daftar, lencana, judul dialog yang sedang terbuka).
+onLanguageChange(async () => {
+  document.querySelectorAll('[data-toggle]').forEach((b) => { $(b.dataset.toggle).type = 'password'; });
+  if (!me) return;
+  applyTranslations();
+  render(lastItems); // tanpa memuat ulang dari server agar isian pengaturan yang belum disimpan tidak tertimpa
+  renderAssistantMeta();
+  updatePendingCount();
+  if ($('usersDialog').open) await renderUsers().catch(() => {});
+  if ($('editor').open) $('editorTitle').textContent = editingId ? t('ed.edit') : t('ed.add');
+  if ($('passwordDialog').open) openPasswordDialogLabels();
+  if ($('profileDialog').open && profileTarget) $('pfTitle').textContent = profileTarget.id === me.id ? t('pf.titleSelf') : t('pf.titleOther', { username: profileTarget.username });
 });
 
 // Mulai: cek apakah masih ada sesi (cookie), bila tidak tampilkan form login.

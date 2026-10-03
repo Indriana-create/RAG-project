@@ -40,3 +40,8 @@ a.ghost { text-decoration: none; display: inline-block; }
 .composer button { width: 46px; border: 0; border-radius: 14px; background: var(--accent); color: var(--accent-text); cursor: pointer; font-size: 1.1rem; }
 .composer button:disabled { opacity: .5; cursor: not-allowed; }
 @media (max-width: 600px) { .app { border: 0; } .msg { max-width: 92%; } .wordmark { height: 20px; } .brand { gap: 10px; } .brand-text { padding-left: 10px; } .brand p { display: none; } .topbar { flex-wrap: wrap; } .actions-top { margin-left: auto; } .actions-top .ghost { white-space: nowrap; } }
+.lang-switch { display: inline-flex; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.lang-switch button { background: none; border: 0; padding: 7px 10px; font: inherit; font-size: .8rem; font-weight: 600; color: var(--muted); cursor: pointer; }
+.lang-switch button[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); }
+.lang-switch button:not([aria-pressed="true"]):hover { color: var(--text); }
+.actions-top { align-items: center; }
