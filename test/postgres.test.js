@@ -230,3 +230,31 @@ test('akun admin di PostgreSQL: seed, login lewat HTTP, password tersimpan sebag
     await llm.stop();
   }
 });
+
+test('start menunggu layanan embedding yang belum siap, lalu menyerah dengan pesan jelas bila tetap mati', opts, async () => {
+  await reset();
+  const llm = await startFakeLlm();
+  const warnings = [];
+  const logger = { warn: (m) => warnings.push(m), log() {} };
+  try {
+    // 1) embedding belum siap saat start (503), pulih setelah ±250 ms → aplikasi tetap berhasil start
+    llm.state.failEmbeddings = 503;
+    setTimeout(() => { llm.state.failEmbeddings = 0; }, 250);
+    const deps = await createDependencies({
+      DATABASE_URL, EMBEDDING_MODEL: 'emb', LLM_BASE_URL: llm.baseUrl, LLM_MODEL: 'm',
+      EMBEDDING_STARTUP_WAIT_SECONDS: '5', EMBEDDING_STARTUP_DELAY_MS: '100',
+    }, { logger });
+    assert.match(deps.description.retrieval, /pgvector/);
+    assert.ok(warnings.some((w) => /Menunggu layanan embedding/.test(w)), 'harus ada log menunggu');
+    assert.equal(deps.description.semantic, true);
+    assert.equal(deps.description.minScoreCalibrated, false);
+    await deps.close();
+
+    // 2) tetap mati dan waktu tunggu habis → gagal jelas, tanpa menggantung koneksi database
+    llm.state.failEmbeddings = 503;
+    await assert.rejects(
+      createDependencies({ DATABASE_URL, EMBEDDING_MODEL: 'emb', LLM_BASE_URL: llm.baseUrl, LLM_MODEL: 'm', EMBEDDING_STARTUP_WAIT_SECONDS: '0' }, { logger }),
+      /Embedding membalas 503/,
+    );
+  } finally { await llm.stop(); }
+});

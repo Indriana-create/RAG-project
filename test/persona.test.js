@@ -121,10 +121,10 @@ test('pertanyaan lanjutan singkat: pencarian diulang bersama pertanyaan sebelumn
   assert.equal(reply.sources[0].id, 'kirim');
   assert.equal(gen.calls.at(-1).contexts.length, 1);
 
-  // sapaan/basa-basi atau pertanyaan panjang BUKAN lanjutan: tidak ada pencarian ulang
+  // sapaan/basa-basi tidak mencari sama sekali; pertanyaan panjang BUKAN lanjutan: tidak ada pencarian ulang
   retriever.queries.length = 0;
   await ask.execute({ sessionId: 's', question: 'terima kasih ya kak' });
-  assert.equal(retriever.queries.length, 1);
+  assert.equal(retriever.queries.length, 0);
   retriever.queries.length = 0;
   await ask.execute({ sessionId: 's', question: 'apakah toko kalian menjual sepeda gunung merk terkenal dari jepang' });
   assert.equal(retriever.queries.length, 1);

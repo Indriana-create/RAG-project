@@ -10,6 +10,7 @@ import { migrateAdminUsers, migrateDocuments } from './infrastructure/persistenc
 import { ExtractiveAnswerGenerator } from './infrastructure/generation/extractive-answer-generator.js';
 import { AnthropicAnswerGenerator } from './infrastructure/generation/anthropic-answer-generator.js';
 import { OpenAiCompatibleAnswerGenerator } from './infrastructure/generation/openai-compatible-answer-generator.js';
+import { retryUpstream } from './infrastructure/llm/retry.js';
 import { OpenAiCompatibleEmbedder } from './infrastructure/embedding/openai-compatible-embedder.js';
 
 const personaFrom = (env) => ({
@@ -64,9 +65,19 @@ export async function createDependencies(env, { logger = console } = {}) {
       repository = new PostgresKnowledgeRepository(pool);
       adminUsers = new PostgresAdminUserRepository(pool);
       if (embedder) {
-        retriever = await PgVectorRetriever.create({
-          pool, embedder, docPrefix: env.EMBEDDING_DOC_PREFIX ?? '', queryPrefix: env.EMBEDDING_QUERY_PREFIX ?? '', logger,
-        });
+        // Layanan embedding (mis. kontainer TEI) bisa belum siap saat aplikasi start, terutama saat mengunduh model pertama kali.
+        const waitSeconds = env.EMBEDDING_STARTUP_WAIT_SECONDS === undefined || env.EMBEDDING_STARTUP_WAIT_SECONDS === '' ? 90 : Number(env.EMBEDDING_STARTUP_WAIT_SECONDS);
+        const delayMs = Number(env.EMBEDDING_STARTUP_DELAY_MS) || 3000;
+        retriever = await retryUpstream(
+          () => PgVectorRetriever.create({
+            pool, embedder, docPrefix: env.EMBEDDING_DOC_PREFIX ?? '', queryPrefix: env.EMBEDDING_QUERY_PREFIX ?? '', logger,
+          }),
+          {
+            attempts: Math.floor((waitSeconds * 1000) / delayMs) + 1,
+            delayMs,
+            onRetry: (err, attempt) => logger.warn(`Menunggu layanan embedding (percobaan ${attempt}): ${err.message}`),
+          },
+        );
         mode = 'vector';
       } else {
         retriever = new TfidfRetriever();
@@ -121,6 +132,8 @@ export async function createDependencies(env, { logger = console } = {}) {
       generator: generatorName,
       assistant: persona.name,
       minScore,
+      minScoreCalibrated: Boolean(env.MIN_SCORE),
+      semantic: mode === 'vector',
     },
     close: () => Promise.all(closers.map((close) => close())),
   };

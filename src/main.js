@@ -46,6 +46,9 @@ const onListening = () => {
   console.log(`http://localhost:${PORT} — ${stats.documents} dokumen aktif, ${stats.chunks} chunk${seeded ? ` (${seeded} dokumen awal diimpor)` : ''}`);
   console.log(`Admin: http://localhost:${PORT}/admin.html | API token otomasi: ${env.ADMIN_TOKEN ? 'aktif' : 'nonaktif'}`);
   console.log(`Penyimpanan: ${storage} | Pencarian: ${retrieval} (ambang ${minScore}) | Jawaban: ${generator}`);
+  if (deps.description.semantic && !deps.description.minScoreCalibrated) {
+    console.warn('MIN_SCORE belum diset: ambang sementara dipakai. Skor kemiripan embedding berbeda tiap model; kalibrasi dengan scripts/calibrate.mjs (lihat README).');
+  }
 };
 // HOST=127.0.0.1 membatasi akses ke mesin ini saja (mis. di belakang reverse proxy / SSH tunnel).
 if (HOST) server.listen(PORT, HOST, onListening);

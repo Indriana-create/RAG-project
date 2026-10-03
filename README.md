@@ -47,11 +47,12 @@ Implementasi dipilih otomatis di `src/bootstrap.js` dari variabel berikut:
 |---|---|---|
 | `DATABASE_URL` | Simpan knowledge di PostgreSQL | file JSON di `DATA_DIR` |
 | `DATABASE_SSL` | `true` / `no-verify` untuk koneksi SSL | tanpa SSL |
-| `EMBEDDING_MODEL` (+ `EMBEDDING_BASE_URL`) | Pencarian semantik via pgvector | TF-IDF (cocok kata) |
+| `EMBEDDING_MODEL` (+ `EMBEDDING_BASE_URL`) | Pencarian berdasarkan makna via pgvector (lihat [Pencarian berdasarkan makna](#pencarian-berdasarkan-makna-embedding)) | TF-IDF (cocok kata) |
+| `EMBEDDING_STARTUP_WAIT_SECONDS` | Lama menunggu layanan embedding saat start | 90 |
 | `LLM_BASE_URL` + `LLM_MODEL` | LLM lokal OpenAI-compatible | `ANTHROPIC_API_KEY` → Claude, selain itu ekstraktif |
 | `ASSISTANT_NAME` | Nama asisten yang memperkenalkan diri (mis. `Lumi dari Lumicore`) | `Asisten Virtual` |
 | `ASSISTANT_STYLE` | Tambahan gaya bicara (mis. `Sapa pengguna dengan "Kak".`) | kosong |
-| `MIN_SCORE` | Ambang kemiripan minimum | 0.05 (TF-IDF) / 0.35 (vektor) |
+| `MIN_SCORE` | Ambang kemiripan minimum; **kalibrasi** bila memakai embedding | 0.05 (TF-IDF) / 0.35 sementara (vektor) |
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD` | Akun admin **pertama** (hanya dipakai bila belum ada akun) | `admin` + password acak dicetak sekali di log |
 | `ADMIN_TOKEN` | Token API untuk otomasi (n8n); tidak untuk login manusia | API token nonaktif |
 | `SESSION_SECRET` | Kunci penanda sesi login | diturunkan dari `ADMIN_TOKEN`, atau acak (login ulang tiap restart) |
@@ -100,21 +101,52 @@ CREATE EXTENSION IF NOT EXISTS vector;     -- butuh pgvector terpasang; perlu su
 
 Lalu `DATABASE_URL=postgres://user:pass@host:5432/rag`. Tabel (`knowledge_documents`, `knowledge_chunks`) dibuat otomatis saat start. Pastikan `pg_hba.conf` dan firewall mengizinkan host aplikasi.
 
-Pencarian semantik (butuh model embedding yang dimuat di server LLM Anda, endpoint `/v1/embeddings`):
+## Pencarian berdasarkan makna (embedding)
+
+Tanpa embedding, pencarian hanya mencocokkan **kata** (TF-IDF): "ongkir ke Papua?" tidak menemukan dokumen yang menulis "pengiriman". Dengan embedding, kalimat dibandingkan berdasarkan **makna**, jadi pertanyaan dengan kata berbeda, singkatan, atau bahasa lain tetap ketemu.
+
+**1. Jalankan layanan embedding** (Hugging Face TEI + `BAAI/bge-m3`, multibahasa, cocok untuk bahasa Indonesia; berjalan di CPU dan hanya dibuka ke `127.0.0.1`):
 
 ```bash
-DATABASE_URL=... EMBEDDING_MODEL=nama-model-embedding \
-LLM_BASE_URL=http://localhost:1234/v1 LLM_MODEL=nama-model npm start
+docker compose -f docker-compose.embedding.yml up -d
+docker compose -f docker-compose.embedding.yml logs -f embeddings   # tunggu siap; unduhan model pertama ±2,3 GB
+
+# uji: harus mencetak 1024 (dimensi vektor bge-m3)
+curl -s http://127.0.0.1:8200/v1/embeddings -H 'content-type: application/json' \
+  -d '{"input":["halo"],"model":"BAAI/bge-m3"}' | python3 -c "import sys,json; print(len(json.load(sys.stdin)['data'][0]['embedding']))"
 ```
 
-- Pilih model embedding **multibahasa** (mis. bge-m3) bila dokumen berbahasa Indonesia.
-- Beberapa model butuh awalan: `EMBEDDING_DOC_PREFIX` / `EMBEDDING_QUERY_PREFIX` (mis. `search_document: ` / `search_query: ` untuk nomic, `passage: ` / `query: ` untuk e5).
-- Dimensi vektor dideteksi otomatis. Mengganti model membuat tabel chunk dibuat ulang dan diindeks ulang (data sumber di `knowledge_documents` aman).
-- Pengindeksan **inkremental**: edit satu dokumen hanya meng-embed chunk yang berubah.
+Bila tag image tidak ditemukan, set `TEI_TAG=cpu-1.8` (atau `cpu-latest`). Server perlu akses ke Hugging Face untuk mengunduh model pertama kali. Untuk GPU, gunakan tag GPU TEI (perhatikan memori GPU yang sudah dipakai vLLM).
 
-### Kalibrasi `MIN_SCORE`
+**2. Aktifkan di `.env` aplikasi** (butuh `DATABASE_URL` dengan pgvector), lalu jalankan ulang:
 
-Skor kemiripan sangat bergantung pada model embedding, jadi angka bawaan (0.35) hanya titik awal. Buka **Admin → Uji pencarian**, coba beberapa pertanyaan relevan dan tidak relevan, lalu atur `MIN_SCORE` di antara skor tertinggi pertanyaan tidak relevan dan skor terendah pertanyaan relevan.
+```bash
+EMBEDDING_MODEL=BAAI/bge-m3
+EMBEDDING_BASE_URL=http://127.0.0.1:8200/v1
+```
+
+Log harus menampilkan `Pencarian: pgvector (BAAI/bge-m3)`. Dimensi vektor dideteksi otomatis, dokumen yang sudah ada langsung diindeks, dan edit satu knowledge hanya meng-embed ulang chunk yang berubah. Bila layanan embedding belum siap saat aplikasi start, aplikasi menunggu hingga `EMBEDDING_STARTUP_WAIT_SECONDS` (bawaan 90) dengan log "Menunggu layanan embedding".
+
+Model lain: set `EMBEDDING_MODEL` sesuai nama di server dan, bila perlu, `EMBEDDING_DOC_PREFIX` / `EMBEDDING_QUERY_PREFIX` (mis. `passage: ` / `query: ` untuk e5; `search_document: ` / `search_query: ` untuk nomic). bge-m3 tidak membutuhkan awalan. Mengganti model membuat tabel chunk dibuat ulang otomatis.
+
+### Kalibrasi `MIN_SCORE` (wajib saat memakai embedding)
+
+Skor kemiripan **tidak absolut**: model BGE, misalnya, cenderung memberi skor tinggi (sekitar 0,6 ke atas) bahkan untuk teks yang kurang berhubungan, dan angkanya berbeda tiap model. Ambang bawaan hanya penampung sementara; tentukan dari data Anda:
+
+1. Tulis 15 sampai 30 pertanyaan contoh di `scripts/calibration-questions.txt`: baris `+` untuk pertanyaan yang jawabannya **ada** di knowledge (sertakan yang bahasanya berbeda dari dokumen), baris `-` untuk yang **tidak ada**.
+2. Jalankan terhadap aplikasi yang sedang berjalan (butuh `ADMIN_TOKEN` di `.env`):
+
+```bash
+docker run --rm --network host -v "$PWD":/app -w /app \
+  -e ADMIN_TOKEN="$(grep '^ADMIN_TOKEN=' .env | cut -d= -f2-)" \
+  node:24-slim node scripts/calibrate.mjs http://127.0.0.1:3000 scripts/calibration-questions.txt
+```
+
+(Atau `ADMIN_TOKEN=... node scripts/calibrate.mjs <alamat> <berkas>` bila Node terpasang; sesuaikan port dengan `PORT` aplikasi.)
+
+3. Skrip menampilkan skor teratas tiap pertanyaan dan merekomendasikan `MIN_SCORE=0.xx`, termasuk pertanyaan mana yang akan ditolak atau masih lolos. Pasang di `.env`, jalankan ulang, lalu cek hasil akhirnya lewat **Admin → Uji pencarian**. Ulangi bila knowledge bertambah banyak atau model embedding diganti.
+
+Skrip memilih ambang yang **lebih mementingkan tidak menolak pertanyaan sah**: pertanyaan sah yang tertolak dihitung dua kali lebih buruk daripada pertanyaan tak relevan yang lolos, sebab LLM masih bisa mengatakan "informasi belum tersedia" pada informasi yang tidak nyambung. Bila skor kedua kelompok tumpang tindih, skrip memberi peringatan; opsi lanjutannya adalah reranker (belum ada).
 
 ## Perilaku chatbot (gaya customer service, tetap sesuai dokumen)
 
@@ -209,7 +241,7 @@ Mengganti komponen cukup menulis adapter baru dan mengubah `bootstrap.js` — us
 ## Pengujian
 
 ```bash
-npm test                                                   # 58 tes; 6 tes PostgreSQL otomatis dilewati
+npm test                                                   # 64 tes; 7 tes PostgreSQL otomatis dilewati
 TEST_DATABASE_URL=postgres://user:pass@localhost:5432/ragtest npm test   # + tes PostgreSQL/pgvector
 ```
 
@@ -221,4 +253,4 @@ TEST_DATABASE_URL=postgres://user:pass@localhost:5432/ragtest npm test   # + tes
 - Pembatas login ada di memori, jadi hitungannya reset saat restart.
 - Riwayat chat di memori (hilang saat restart).
 - Unggah hanya `.md`/`.txt` (PDF/DOCX belum didukung; bisa lewat n8n).
-- Belum ada reranking/hybrid search; kualitas bergantung pada model embedding dan `MIN_SCORE`.
+- Belum ada reranker maupun hybrid search (kata + makna); kualitas bergantung pada model embedding dan `MIN_SCORE`. Kode/ID persis (mis. nomor produk) paling baik dicari dengan kata, bukan makna.

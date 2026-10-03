@@ -1,0 +1,27 @@
+# Layanan embedding untuk pencarian berdasarkan MAKNA (Hugging Face Text Embeddings Inference + bge-m3).
+# Berjalan di CPU, hanya dibuka ke 127.0.0.1 server (pola yang sama dengan vLLM/PostgreSQL Anda).
+#
+#   docker compose -f docker-compose.embedding.yml up -d
+#   docker compose -f docker-compose.embedding.yml logs -f embeddings    # tunggu "Ready"; unduhan model pertama ±2,3 GB
+#
+# Lalu di .env aplikasi:
+#   EMBEDDING_MODEL=BAAI/bge-m3
+#   EMBEDDING_BASE_URL=http://127.0.0.1:8200/v1
+#
+# Variabel opsional: TEI_TAG (bawaan cpu-1.9; bila tag tidak ditemukan coba cpu-1.8 atau cpu-latest),
+# EMBEDDING_MODEL_ID, EMBEDDING_PORT. Untuk GPU, pakai tag GPU TEI + `--gpus all` (perhatikan memori GPU yang dipakai vLLM).
+# Nama proyek terpisah dari aplikasi, agar `docker compose` untuk berkas lain tidak menganggap ini "orphan".
+name: rag-embedding
+
+services:
+  embeddings:
+    image: ghcr.io/huggingface/text-embeddings-inference:${TEI_TAG:-cpu-1.9}
+    command: ["--model-id", "${EMBEDDING_MODEL_ID:-BAAI/bge-m3}", "--port", "80"]
+    ports:
+      - "127.0.0.1:${EMBEDDING_PORT:-8200}:80"
+    volumes:
+      - tei-cache:/data          # cache model agar tidak mengunduh ulang
+    restart: unless-stopped
+
+volumes:
+  tei-cache:

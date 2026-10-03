@@ -8,6 +8,8 @@ const MAX_QUESTION_LENGTH = 1000;
 const HISTORY_WINDOW = 6;
 const MAX_FOLLOW_UP_TOKENS = 6;
 const NO_TOPICS = { titles: async () => [] };
+/** Huruf non-Latin (Arab, Mandarin, dst.) tidak punya kata kunci di tokenizer kita, tetapi pencarian makna multibahasa bisa memprosesnya. */
+const HAS_NON_LATIN_LETTER = /(?!\p{Script=Latin})\p{L}/u;
 
 /**
  * Use case inti RAG: retrieve informasi → generate jawaban → simpan riwayat.
@@ -78,9 +80,11 @@ export class AskQuestion {
     if (q.length > MAX_QUESTION_LENGTH) throw new ValidationError(`Pertanyaan maksimal ${MAX_QUESTION_LENGTH} karakter`);
 
     const previous = (await this.history.list(sessionId)).slice(-HISTORY_WINDOW);
-    let hits = this.#relevant(await this.retriever.search(q, this.topK, { signal }));
+    // Sapaan / basa-basi ("halo kak", "terima kasih", "kamu siapa?") tidak punya kata isi: jangan cari apa pun.
+    const smallTalk = tokenize(q).length === 0 && !HAS_NON_LATIN_LETTER.test(q);
+    let hits = smallTalk ? [] : this.#relevant(await this.retriever.search(q, this.topK, { signal }));
 
-    if (!hits.length) {
+    if (!hits.length && !smallTalk) {
       const words = tokenize(q).length;
       const lastQuestion = [...previous].reverse().find((m) => m.role === Role.USER)?.content;
       if (lastQuestion && words >= 1 && words <= MAX_FOLLOW_UP_TOKENS) {

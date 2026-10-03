@@ -1,0 +1,19 @@
+# Contoh untuk empat knowledge awal (pengiriman, pengembalian, pembayaran, kontak).
+# GANTI dengan pertanyaan nyata dari bidang Anda. Idealnya 15-30 baris, campuran gaya bahasa.
+#
+# "+" = pertanyaan yang JAWABANNYA ADA di knowledge (harus ketemu), termasuk yang berbeda kata dengan dokumen.
++ Berapa lama pengiriman ke luar Jawa?
++ Ongkir gratis kalau belanja berapa?
++ Paket saya sampai kapan?
++ Barang rusak bisa dikembalikan?
++ Uangnya balik berapa hari kalau refund?
++ Boleh bayar pakai gopay atau ovo?
++ Bisa cicil tanpa bunga?
++ Jam berapa CS buka?
++ Kontak WhatsApp resmi berapa?
+# "-" = pertanyaan yang jawabannya TIDAK ADA di knowledge (tidak boleh ketemu).
+- Siapa presiden Amerika Serikat?
+- Resep rendang yang enak
+- Berapa harga laptop gaming?
+- Cuaca besok di Bandung bagaimana?
+- Cara memasang AC split sendiri

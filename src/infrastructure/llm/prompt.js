@@ -21,6 +21,7 @@ function baseRules({ persona, isFirstMessage }) {
     isFirstMessage
       ? '- Ini pesan pertama dalam percakapan: boleh menyapa singkat dengan hangat.'
       : '- Percakapan sudah berjalan: jangan menyapa atau memperkenalkan diri lagi, langsung jawab.',
+    '- Jika pesan hanya berupa sapaan, ucapan terima kasih, atau perkenalan, balas ramah dan singkat tanpa memakai informasi resmi.',
     '- Tawarkan bantuan lanjutan hanya bila terasa natural, jangan di setiap jawaban.',
   ].filter((line, i, all) => line !== '' || (all[i - 1] !== '' && i > 0)).join('\n');
 }
