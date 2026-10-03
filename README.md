@@ -267,3 +267,7 @@ Server mengirim `Cache-Control: no-store` untuk semua halaman dan berkas statis,
 ## Bahasa antarmuka (ID / EN)
 
 Halaman chat dan admin punya pilihan bahasa **ID | EN** di pojok kanan atas. Pilihan disimpan di peramban; tanpa pilihan, bahasa mengikuti peramban (id → Indonesia, lainnya → English). Semua teks ada di `src/interface/web/i18n.js` (dua kamus); tes memastikan kedua bahasa selalu punya kunci yang sama dan tidak ada teks yang tertinggal. Yang **tidak** ikut diterjemahkan: pesan error dari server (mis. validasi) dan isi knowledge. Bahasa jawaban chatbot mengikuti bahasa pertanyaan pengguna lewat "Gaya bicara" di Pengaturan asisten.
+
+## Logo dan ikon
+
+Berkas ada di `src/interface/web/`: `logo-mark.png` (simbol di header chat dan admin), `favicon.png` (ikon tab, 64 px) dan `apple-touch-icon.png` (180 px). Tulisan "LumiAssist" di header adalah teks biasa yang diberi warna logo ("Lumi" biru tua, "Assist" indigo; warnanya di `styles.css`), jadi tetap tajam di layar apa pun. Untuk mengganti logo, timpa berkas-berkas itu; versi aset otomatis membuat peramban mengambil yang baru. Bila ada logo versi besar atau SVG, hasilnya akan lebih tajam di layar HP beresolusi tinggi.

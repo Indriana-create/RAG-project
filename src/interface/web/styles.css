@@ -10,10 +10,18 @@ body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 syst
 .app { max-width: 820px; height: 100dvh; margin: 0 auto; display: flex; flex-direction: column; background: var(--surface); border-inline: 1px solid var(--border); }
 .topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
 .brand { display: flex; gap: 12px; align-items: center; }
-.brand h1 { margin: 0; font-size: 1.05rem; } .brand p { margin: 0; font-size: .8rem; color: var(--muted); }
-.wordmark { height: 24px; width: auto; flex: none; }
-.brand-text { padding-left: 12px; border-left: 1px solid var(--border); min-width: 0; }
-@media (prefers-color-scheme: dark) { .wordmark { filter: invert(1); } } /* logo hitam transparan → putih di tema gelap */
+.brand h1 { margin: 0; font-size: 1.35rem; font-weight: 800; letter-spacing: -.02em; line-height: 1.15; } .brand p { margin: 0; font-size: .8rem; color: var(--muted); }
+.brand-mark { height: 40px; width: auto; flex: none; border-radius: 10px; }
+.brand-text { min-width: 0; }
+/* Warna teks mengikuti logo: "Lumi" biru tua, "Assist" indigo. */
+.brand h1 .lumi { color: #182060; }
+.brand h1 .assist { color: #5440e8; }
+.brand h1 .admin-tag { margin-left: 6px; padding: 2px 8px; border-radius: 999px; background: var(--bg); border: 1px solid var(--border); font-size: .6rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); vertical-align: middle; }
+@media (prefers-color-scheme: dark) {
+  .brand h1 .lumi { color: #e8eaf0; }
+  .brand h1 .assist { color: #8f86ff; }
+  .brand-mark { background: #fff; padding: 3px; border-radius: 12px; } /* logo punya latar putih: jadi kotak putih di tema gelap */
+}
 .logo { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; background: var(--accent); color: var(--accent-text); }
 .ghost { background: none; border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 10px; cursor: pointer; font: inherit; font-size: .85rem; }
 .actions-top { display: flex; gap: 8px; }
@@ -39,7 +47,7 @@ a.ghost { text-decoration: none; display: inline-block; }
 .composer textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 .composer button { width: 46px; border: 0; border-radius: 14px; background: var(--accent); color: var(--accent-text); cursor: pointer; font-size: 1.1rem; }
 .composer button:disabled { opacity: .5; cursor: not-allowed; }
-@media (max-width: 600px) { .app { border: 0; } .msg { max-width: 92%; } .wordmark { height: 20px; } .brand { gap: 10px; } .brand-text { padding-left: 10px; } .brand p { display: none; } .topbar { flex-wrap: wrap; } .actions-top { margin-left: auto; } .actions-top .ghost { white-space: nowrap; } }
+@media (max-width: 600px) { .app { border: 0; } .msg { max-width: 92%; } .brand-mark { height: 32px; } .brand { gap: 10px; } .brand h1 { font-size: 1.2rem; } .brand p { display: none; } .topbar { flex-wrap: wrap; } .actions-top { margin-left: auto; } .actions-top .ghost { white-space: nowrap; } }
 .lang-switch { display: inline-flex; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
 .lang-switch button { background: none; border: 0; padding: 7px 10px; font: inherit; font-size: .8rem; font-weight: 600; color: var(--muted); cursor: pointer; }
 .lang-switch button[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); }

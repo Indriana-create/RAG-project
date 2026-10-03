@@ -472,12 +472,12 @@ test('seed admin: akun menunggu tidak dianggap admin; migrasi PostgreSQL memberi
 test('berkas statis tidak boleh di-cache (mencegah Cloudflare menyajikan JS lama dengan HTML baru)', async () => {
   const t = await start();
   try {
-    for (const file of ['/', '/admin.html', '/admin.js', '/app.js', '/styles.css', '/logo.png']) {
+    for (const file of ['/', '/admin.html', '/admin.js', '/app.js', '/styles.css', '/logo-mark.png', '/favicon.png']) {
       const res = await fetch(t.base + file);
       assert.equal(res.status, 200, file);
       assert.equal(res.headers.get('cache-control'), 'no-store', file);
     }
-    assert.equal((await fetch(t.base + '/logo.png')).headers.get('content-type'), 'image/png');
+    assert.equal((await fetch(t.base + '/logo-mark.png')).headers.get('content-type'), 'image/png');
   } finally { await t.stop(); }
 });
 
@@ -529,7 +529,7 @@ test('aset diberi versi otomatis (?v=hash) di HTML dan import antar-modul, sehin
     const version = html.match(/\/app\.js\?v=([0-9a-f]{12})"/)?.[1];
     assert.ok(version, 'script app.js harus berversi');
     assert.match(html, new RegExp(`/styles\\.css\\?v=${version}"`));
-    assert.match(html, new RegExp(`/logo\\.png\\?v=${version}"`));
+    assert.match(html, new RegExp(`/logo-mark\\.png\\?v=${version}"`));
     assert.doesNotMatch(html, /(src|href)="\/[\w.-]+\.(js|css|png)"/); // tidak ada yang tanpa versi
 
     // Import antar-modul memakai versi yang sama → satu instance modul (bahasa terpilih dibagi app.js dan api.js).
@@ -547,7 +547,7 @@ test('aset diberi versi otomatis (?v=hash) di HTML dan import antar-modul, sehin
     assert.equal(res.headers.get('cache-control'), 'no-store');
 
     // Gambar tidak diubah isinya.
-    const logo = Buffer.from(await (await fetch(`${t.base}/logo.png`)).arrayBuffer());
+    const logo = Buffer.from(await (await fetch(`${t.base}/logo-mark.png`)).arrayBuffer());
     assert.equal(logo.subarray(1, 4).toString(), 'PNG');
   } finally { await t.stop(); }
 });
