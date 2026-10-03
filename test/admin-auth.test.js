@@ -521,3 +521,33 @@ test('edit profil: ubah nama tampilan dan username sendiri maupun akun lain, den
     assert.equal((await admin('PATCH', `/api/admin/users/${budiId}`, { displayName: 'X' }, { 'sec-fetch-site': 'cross-site' })).status, 403);
   } finally { await t.stop(); }
 });
+
+test('aset diberi versi otomatis (?v=hash) di HTML dan import antar-modul, sehingga cache lama tidak terpakai', async () => {
+  const t = await start();
+  try {
+    const html = await (await fetch(`${t.base}/`)).text();
+    const version = html.match(/\/app\.js\?v=([0-9a-f]{12})"/)?.[1];
+    assert.ok(version, 'script app.js harus berversi');
+    assert.match(html, new RegExp(`/styles\\.css\\?v=${version}"`));
+    assert.match(html, new RegExp(`/logo\\.png\\?v=${version}"`));
+    assert.doesNotMatch(html, /(src|href)="\/[\w.-]+\.(js|css|png)"/); // tidak ada yang tanpa versi
+
+    // Import antar-modul memakai versi yang sama → satu instance modul (bahasa terpilih dibagi app.js dan api.js).
+    const app = await (await fetch(`${t.base}/app.js?v=${version}`)).text();
+    assert.match(app, new RegExp(`from './i18n\\.js\\?v=${version}'`));
+    const api = await (await fetch(`${t.base}/api.js`)).text();
+    assert.match(api, new RegExp(`from './i18n\\.js\\?v=${version}'`));
+    const admin = await (await fetch(`${t.base}/admin.html`)).text();
+    assert.match(admin, new RegExp(`/admin\\.js\\?v=${version}"`));
+
+    // Query string tidak mengganggu pelayanan berkas, dan tipe isi tetap benar.
+    const res = await fetch(`${t.base}/i18n.js?v=sembarang`);
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get('content-type'), 'text/javascript; charset=utf-8');
+    assert.equal(res.headers.get('cache-control'), 'no-store');
+
+    // Gambar tidak diubah isinya.
+    const logo = Buffer.from(await (await fetch(`${t.base}/logo.png`)).arrayBuffer());
+    assert.equal(logo.subarray(1, 4).toString(), 'PNG');
+  } finally { await t.stop(); }
+});

@@ -1,5 +1,6 @@
 import http from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import {
   AuthenticationError, ConflictError, ForbiddenError, NotFoundError, TooManyAttemptsError, UpstreamError, ValidationError,
@@ -65,10 +66,12 @@ export function createServer({
     return null;
   }
 
+  const assets = createAssetVersion(publicDir);
+
   return http.createServer(async (req, res) => {
     const { pathname } = new URL(req.url, 'http://localhost');
     try {
-      if (!pathname.startsWith('/api/')) return await serveStatic(res, publicDir, pathname);
+      if (!pathname.startsWith('/api/')) return await serveStatic(res, publicDir, pathname, assets);
 
       for (const { method, regex, handler, auth } of routes) {
         const match = regex.exec(pathname);
@@ -139,15 +142,40 @@ async function sendEvents(res, events, signal) {
   }
 }
 
-async function serveStatic(res, root, pathname) {
+/**
+ * Versi aset = hash isi semua berkas web. Dipakai sebagai `?v=...` pada URL JS/CSS/gambar (di HTML dan di import antar-modul)
+ * agar peramban/CDN yang masih menyimpan salinan lama (mis. dari sebelum `no-store`) otomatis meminta berkas baru
+ * setiap kali aplikasi diperbarui. Dihitung sekali (lazy) per proses.
+ */
+function createAssetVersion(root) {
+  let pending;
+  return () => (pending ??= (async () => {
+    const hash = createHash('sha256');
+    const files = (await readdir(root, { withFileTypes: true })).filter((e) => e.isFile()).map((e) => e.name).sort();
+    for (const name of files) hash.update(name).update(await readFile(path.join(root, name)));
+    return hash.digest('hex').slice(0, 12);
+  })().catch((err) => { pending = undefined; throw err; })); // gagal sekali tidak boleh macet selamanya
+}
+
+const ASSET_URL = /\b(src|href)="(\/[\w.-]+\.(?:js|css|png|jpg|webp|ico))"/g;
+const MODULE_IMPORT = /(\bfrom\s+|\bimport\()'(\.\/[\w.-]+\.js)'/g;
+
+function withVersion(ext, data, version) {
+  if (ext === '.html') return data.toString('utf8').replace(ASSET_URL, `$1="$2?v=${version}"`);
+  if (ext === '.js') return data.toString('utf8').replace(MODULE_IMPORT, `$1'$2?v=${version}'`);
+  return data;
+}
+
+async function serveStatic(res, root, pathname, assetVersion) {
   const file = path.join(root, pathname === '/' ? 'index.html' : pathname);
   if (!file.startsWith(root + path.sep)) return send(res, 403, { error: 'Dilarang' });
   try {
-    const data = await readFile(file);
+    const ext = path.extname(file);
+    const data = withVersion(ext, await readFile(file), await assetVersion());
     // no-store: Cloudflare/peramban tidak boleh menyajikan halaman versi lama setelah aplikasi diperbarui
     // (HTML baru dengan JS lama membuat form tampak "tidak menyimpan").
     res.writeHead(200, {
-      'content-type': MIME[path.extname(file)] ?? 'application/octet-stream',
+      'content-type': MIME[ext] ?? 'application/octet-stream',
       'x-content-type-options': 'nosniff',
       'cache-control': 'no-store',
     }).end(data);
