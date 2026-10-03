@@ -173,6 +173,7 @@ Halaman `/admin.html` memakai **akun per orang** (username + password), bukan sa
 - Siapa yang sedang login tampil di bagian atas halaman ("Masuk sebagai ...").
 - **Ubah password** sendiri lewat tombol di bagian atas (minimal 8 karakter, tidak wajib simbol). Perangkat lain yang masih login otomatis keluar.
 - **Daftar akun**: halaman login punya tautan "Daftar" (username, nama, password). Akun baru berstatus **menunggu** dan belum bisa login (pesan: "menunggu persetujuan admin") sampai akun admin yang ada menyetujuinya di **Kelola admin → Setujui** (atau **Tolak** untuk menghapus). Akun yang disetujui punya hak yang sama dengan admin lain: melihat dan mengubah knowledge yang sama, mengelola akun, dan pengaturan asisten. Pendaftaran dibatasi 5 per jam per alamat IP dan maksimal 50 akun menunggu. Akun yang sudah ada sebelum fitur ini otomatis berstatus aktif.
+- **Edit profil**: tombol **Edit profil** (akun sendiri) dan **Edit** di tiap baris **Kelola admin** mengubah nama tampilan dan username. Mengganti username tidak mengeluarkan siapa pun dari sesinya; login berikutnya memakai username baru. API: `PATCH /api/admin/users/:id` (hanya sesi login).
 - **Kelola admin**: setujui/tolak pendaftaran, tambah akun, reset password akun lain, hapus akun. Tidak bisa menghapus diri sendiri atau akun terakhir.
 - Password disimpan sebagai hash **scrypt** (tabel `admin_users` di PostgreSQL, atau `data/admin-users.json` tanpa database). Sesi berupa cookie `HttpOnly` + `SameSite=Lax` (+ `Secure` bila lewat HTTPS), bukan token yang disimpan di JavaScript.
 - **Pembatasan login**: 5 kali gagal untuk satu akun, atau 30 kali dari satu alamat IP, mengunci 5 menit.
@@ -205,7 +206,7 @@ Endpoint knowledge dapat diakses dengan sesi login **atau** `Authorization: Bear
 | GET | `/api/admin/me` | akun yang sedang login (sesi) |
 | POST | `/api/admin/password` | ubah password sendiri `{currentPassword, newPassword}` (sesi) |
 | GET/POST | `/api/admin/users` | daftar / tambah akun `{username, displayName?, password}` (sesi) |
-| POST/DELETE | `/api/admin/users/:id/password` · `/api/admin/users/:id` | reset password / hapus akun (sesi) |
+| POST/DELETE | `/api/admin/users/:id/password` · `/api/admin/users/:id` | reset password / ubah profil (PATCH) / hapus akun (sesi) |
 
 API chat (publik): `POST /api/chat` (jawaban utuh) dan `POST /api/chat/stream` (Server-Sent Events: `sources` → `token`* → `done`/`error`).
 
@@ -245,7 +246,7 @@ Mengganti komponen cukup menulis adapter baru dan mengubah `bootstrap.js` — us
 ## Pengujian
 
 ```bash
-npm test                                                   # 75 tes; 8 tes PostgreSQL otomatis dilewati
+npm test                                                   # 76 tes; 8 tes PostgreSQL otomatis dilewati
 TEST_DATABASE_URL=postgres://user:pass@localhost:5432/ragtest npm test   # + tes PostgreSQL/pgvector
 ```
 

@@ -134,6 +134,30 @@ export class RegisterAccount {
   }
 }
 
+/**
+ * Mengubah profil (username dan/atau nama tampilan) sebuah akun. Sesi tidak terpengaruh: token mengacu ke id akun,
+ * bukan username. Akun yang masih menunggu persetujuan tidak bisa diubah (tolak atau setujui dulu).
+ */
+export class UpdateAdminProfile {
+  constructor({ users }) { this.users = users; }
+
+  async execute({ id, username, displayName }) {
+    const user = await this.users.get(id);
+    if (!user) throw new NotFoundError('Akun tidak ditemukan');
+    if (username === undefined && displayName === undefined) throw new ValidationError('Tidak ada yang diubah');
+    const next = createAdminUser({
+      ...user,
+      username: username ?? user.username,
+      displayName: displayName === undefined ? user.displayName : (displayName.trim() || undefined),
+    });
+    if (next.username === user.username && next.displayName === user.displayName) return toPublicUser(user);
+    const clash = await this.users.getByUsername(next.username);
+    if (clash && clash.id !== id) throw new ConflictError(`Username "${next.username}" sudah dipakai`);
+    await this.users.save(next);
+    return toPublicUser(next);
+  }
+}
+
 /** Menyetujui pendaftaran: akun menjadi aktif dan memiliki hak admin yang sama dengan akun lain. */
 export class ApproveAdminUser {
   constructor({ users }) { this.users = users; }

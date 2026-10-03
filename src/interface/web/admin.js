@@ -224,6 +224,38 @@ function openPasswordDialog(target = null) {
 
 $('openPassword').addEventListener('click', () => openPasswordDialog());
 
+// ---------- Edit profil ----------
+let profileTarget = null;
+function openProfileDialog(target) {
+  profileTarget = target;
+  $('pfTitle').textContent = target.id === me.id ? 'Edit profil Anda' : `Edit profil @${target.username}`;
+  $('pfDisplay').value = target.displayName;
+  $('pfUsername').value = target.username;
+  $('pfError').textContent = '';
+  $('profileDialog').showModal();
+  $('pfDisplay').focus();
+}
+
+$('openProfile').addEventListener('click', () => openProfileDialog(me));
+
+$('profileForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  $('pfSave').disabled = true;
+  $('pfError').textContent = '';
+  try {
+    const updated = await api.updateUser(profileTarget.id, { displayName: $('pfDisplay').value, username: $('pfUsername').value });
+    $('profileDialog').close();
+    if (updated.id === me.id) showPanel(updated);
+    toast('Profil disimpan');
+    if ($('usersDialog').open) await renderUsers();
+  } catch (err) {
+    if (err.status === 401) { $('profileDialog').close(); $('usersDialog').close(); sessionExpired(); }
+    else $('pfError').textContent = err.message;
+  } finally {
+    $('pfSave').disabled = false;
+  }
+});
+
 $('passwordForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const next = $('pwNew').value;
@@ -296,7 +328,10 @@ async function renderUsers() {
           try { await api.removeUser(u.id); toast('Pendaftaran ditolak'); await renderUsers(); updatePendingCount(); } catch (err) { failed(err); }
         }),
       );
-    } else if (u.id !== me.id) {
+    } else {
+      controls.append(button('Edit', 'ghost', () => openProfileDialog(u)));
+    }
+    if (!pending && u.id !== me.id) {
       controls.append(
         button('Reset password', 'ghost', () => openPasswordDialog({ id: u.id, username: u.username })),
         button('Hapus', 'ghost danger', async () => {

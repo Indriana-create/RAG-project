@@ -4,7 +4,7 @@ import { SeedKnowledge } from './application/use-cases/seed-knowledge.js';
 import { AskQuestion } from './application/use-cases/ask-question.js';
 import { GetHistory, ClearHistory } from './application/use-cases/manage-history.js';
 import {
-  ApproveAdminUser, ChangeOwnPassword, CreateAdminUser, DeleteAdminUser, ListAdminUsers, LoginAdmin, RegisterAccount, ResetAdminPassword, ResolveAdminSession, SeedAdminUser,
+  ApproveAdminUser, ChangeOwnPassword, CreateAdminUser, DeleteAdminUser, ListAdminUsers, LoginAdmin, RegisterAccount, ResetAdminPassword, UpdateAdminProfile, ResolveAdminSession, SeedAdminUser,
 } from './application/use-cases/admin-auth.js';
 import { AssistantSettingsService } from './application/use-cases/assistant-settings.js';
 import { SearchKnowledge } from './application/use-cases/search-knowledge.js';
@@ -66,6 +66,7 @@ export async function buildApp({
       resetAdminPassword: new ResetAdminPassword({ users: adminUsers, hasher }),
       registerAccount: new RegisterAccount({ users: adminUsers, hasher, newId: randomUUID, throttle }),
       approveAdminUser: new ApproveAdminUser({ users: adminUsers }),
+      updateAdminProfile: new UpdateAdminProfile({ users: adminUsers }),
     }),
     resolveSession: new ResolveAdminSession({ users: adminUsers, sessions }),
     authenticateBearer: createTokenAuthenticator(adminToken),

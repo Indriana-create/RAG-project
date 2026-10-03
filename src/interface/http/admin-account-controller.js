@@ -2,8 +2,8 @@ const text = (value) => (typeof value === 'string' ? value : undefined);
 
 /** Controller akun admin: login/logout, profil, ubah password, kelola akun. */
 export class AdminAccountController {
-  constructor({ loginAdmin, changeOwnPassword, listAdminUsers, createAdminUser, deleteAdminUser, resetAdminPassword, registerAccount, approveAdminUser }) {
-    Object.assign(this, { loginAdmin, changeOwnPassword, listAdminUsers, createAdminUser, deleteAdminUser, resetAdminPassword, registerAccount, approveAdminUser });
+  constructor({ loginAdmin, changeOwnPassword, listAdminUsers, createAdminUser, deleteAdminUser, resetAdminPassword, registerAccount, approveAdminUser, updateAdminProfile }) {
+    Object.assign(this, { loginAdmin, changeOwnPassword, listAdminUsers, createAdminUser, deleteAdminUser, resetAdminPassword, registerAccount, approveAdminUser, updateAdminProfile });
   }
 
   login = async ({ body, ip }) => {
@@ -15,6 +15,11 @@ export class AdminAccountController {
   register = async ({ body, ip }) => ({
     status: 202,
     body: await this.registerAccount.execute({ username: text(body.username), displayName: text(body.displayName), password: text(body.password), ip }),
+  });
+
+  updateUser = async ({ params, body }) => ({
+    status: 200,
+    body: { user: await this.updateAdminProfile.execute({ id: params.id, username: text(body.username), displayName: text(body.displayName) }) },
   });
 
   approveUser = async ({ params }) => ({ status: 200, body: await this.approveAdminUser.execute({ id: params.id }) });

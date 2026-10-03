@@ -62,6 +62,7 @@
           </div>
         </div>
         <div class="who-actions">
+          <button id="openProfile" class="ghost" type="button">Edit profil</button>
           <button id="openPassword" class="ghost" type="button">Ubah password</button>
           <button id="openUsers" class="ghost" type="button">Kelola admin <span id="pendingCount" class="badge pending" hidden></span></button>
           <button id="logout" class="ghost" type="button">Keluar</button>
@@ -137,6 +138,22 @@
       <div class="actions">
         <button class="ghost" type="button" data-close="passwordDialog">Batal</button>
         <button class="primary" type="submit" id="pwSave">Simpan password</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="profileDialog">
+    <form id="profileForm">
+      <h2 id="pfTitle">Edit profil</h2>
+      <label for="pfDisplay">Nama tampilan</label>
+      <input id="pfDisplay" autocomplete="name" maxlength="60" required>
+      <label for="pfUsername">Username (3–32 karakter: huruf kecil, angka, titik, garis bawah, tanda hubung)</label>
+      <input id="pfUsername" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="32" required>
+      <p class="muted">Mengganti username tidak membuat siapa pun keluar dari sesinya; login berikutnya memakai username yang baru.</p>
+      <p id="pfError" class="error" role="alert"></p>
+      <div class="actions">
+        <button class="ghost" type="button" data-close="profileDialog">Batal</button>
+        <button class="primary" type="submit" id="pfSave">Simpan profil</button>
       </div>
     </form>
   </dialog>

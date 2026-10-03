@@ -40,6 +40,7 @@ export function createServer({
     route('POST', '/api/admin/password', adminAccounts.changePassword, { auth: 'session' }),
     route('GET', '/api/admin/users', adminAccounts.users, { auth: 'session' }),
     route('POST', '/api/admin/users', adminAccounts.createUser, { auth: 'session' }),
+    route('PATCH', '/api/admin/users/:id', adminAccounts.updateUser, { auth: 'session' }),
     route('DELETE', '/api/admin/users/:id', adminAccounts.removeUser, { auth: 'session' }),
     route('POST', '/api/admin/users/:id/approve', adminAccounts.approveUser, { auth: 'session' }),
     route('POST', '/api/admin/users/:id/password', adminAccounts.resetPassword, { auth: 'session' }),

@@ -23,6 +23,7 @@ export function createAdminApi() {
     changePassword: (currentPassword, newPassword) => request('/api/admin/password', json('POST', { currentPassword, newPassword })).then((r) => r.user),
     users: () => request('/api/admin/users').then((r) => r.items),
     createUser: (data) => request('/api/admin/users', json('POST', data)),
+    updateUser: (id, data) => request(user(id), json('PATCH', data)).then((r) => r.user),
     removeUser: (id) => request(user(id), { method: 'DELETE' }),
     resetPassword: (id, newPassword) => request(`${user(id)}/password`, json('POST', { newPassword })),
     // pengaturan asisten

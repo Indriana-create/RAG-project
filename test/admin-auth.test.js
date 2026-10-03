@@ -479,3 +479,44 @@ test('berkas statis tidak boleh di-cache (mencegah Cloudflare menyajikan JS lama
     }
   } finally { await t.stop(); }
 });
+
+test('edit profil: ubah nama tampilan dan username sendiri maupun akun lain, dengan validasi dan tanpa mencabut sesi', async () => {
+  const t = await start();
+  try {
+    const { c: admin } = await t.login();
+    const created = await admin('POST', '/api/admin/users', { username: 'budi', displayName: 'Budi', password: 'password-budi-1' });
+    const budiId = created.json.id;
+    const adminId = (await admin('GET', '/api/admin/me')).json.user.id;
+
+    // Akun sendiri: nama tampilan + username; sesi tetap berlaku karena token mengacu ke id.
+    const own = await admin('PATCH', `/api/admin/users/${adminId}`, { displayName: ' Indriana ', username: 'Indriana.A' });
+    assert.equal(own.status, 200);
+    assert.equal(own.json.user.displayName, 'Indriana');
+    assert.equal(own.json.user.username, 'indriana.a');
+    assert.doesNotMatch(own.text, /passwordHash|scrypt|tokenVersion/);
+    assert.equal((await admin('GET', '/api/admin/me')).json.user.username, 'indriana.a');
+    assert.equal((await t.login('indriana.a', BOOT.password)).res.status, 200);
+    assert.equal((await t.client()('POST', '/api/admin/login', { username: 'admin', password: BOOT.password })).status, 401); // username lama tidak berlaku
+
+    // Akun lain.
+    const other = await admin('PATCH', `/api/admin/users/${budiId}`, { displayName: 'Budi Santoso' });
+    assert.equal(other.json.user.displayName, 'Budi Santoso');
+    assert.equal(other.json.user.username, 'budi'); // field yang tidak dikirim tidak berubah
+
+    // Mengosongkan nama tampilan → kembali ke username. Hanya satu field boleh dikirim.
+    assert.equal((await admin('PATCH', `/api/admin/users/${budiId}`, { displayName: '  ' })).json.user.displayName, 'budi');
+
+    // Validasi.
+    assert.equal((await admin('PATCH', `/api/admin/users/${budiId}`, { username: 'indriana.a' })).status, 409);
+    assert.equal((await admin('PATCH', `/api/admin/users/${budiId}`, { username: 'bu di' })).status, 400);
+    assert.equal((await admin('PATCH', `/api/admin/users/${budiId}`, { displayName: 'x'.repeat(61) })).status, 400);
+    assert.equal((await admin('PATCH', `/api/admin/users/${budiId}`, {})).status, 400);
+    assert.equal((await admin('PATCH', '/api/admin/users/tidak-ada', { displayName: 'X' })).status, 404);
+    assert.equal((await admin('PATCH', `/api/admin/users/${budiId}`, { username: 'budi' })).status, 200); // tanpa perubahan = tidak error
+
+    // Wajib sesi login; Bearer token otomasi dan anonim ditolak; lintas-situs ditolak.
+    assert.equal((await t.client()('PATCH', `/api/admin/users/${budiId}`, { displayName: 'X' })).status, 401);
+    assert.equal((await t.client()('PATCH', `/api/admin/users/${budiId}`, { displayName: 'X' }, { authorization: 'Bearer token-otomasi-123' })).status, 401);
+    assert.equal((await admin('PATCH', `/api/admin/users/${budiId}`, { displayName: 'X' }, { 'sec-fetch-site': 'cross-site' })).status, 403);
+  } finally { await t.stop(); }
+});
