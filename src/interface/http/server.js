@@ -55,6 +55,7 @@ export function createServer({
     route('POST', '/api/admin/search', adminKnowledge.search, { auth: 'admin' }),
     route('GET', '/api/admin/knowledge', adminKnowledge.list, { auth: 'admin' }),
     route('POST', '/api/admin/knowledge/extract', adminKnowledge.extract, { auth: 'admin', raw: true }),
+    route('POST', '/api/admin/knowledge/import-url', adminKnowledge.importUrl, { auth: 'admin' }),
     route('POST', '/api/admin/knowledge', adminKnowledge.create, { auth: 'admin', maxBody: MAX_KNOWLEDGE_BODY }),
     route('GET', '/api/admin/knowledge/:id', adminKnowledge.get, { auth: 'admin' }),
     route('PUT', '/api/admin/knowledge/:id', adminKnowledge.update, { auth: 'admin', maxBody: MAX_KNOWLEDGE_BODY }),

@@ -131,6 +131,9 @@ async function openEditor(id = null) {
   $('editorError').textContent = '';
   $('docFile').value = '';
   $('fileInfo').textContent = '';
+  $('urlInfo').textContent = '';
+  $('docUrl').value = '';
+  $('crawlSite').checked = false;
   $('editorTitle').textContent = id ? t('ed.edit') : t('ed.add');
   if (id) {
     try {
@@ -480,6 +483,121 @@ $('docFile').addEventListener('change', async (e) => {
   }
 });
 
+// ---------- Ambil dari URL ----------
+let crawlPages = [];
+
+function updateCrawlSave() {
+  const n = $('crawlList').querySelectorAll('input:checked').length;
+  $('crawlSave').textContent = t('crawl.save', { n });
+  $('crawlSave').disabled = n === 0;
+}
+
+let crawlResult = null;
+let crawlHost = '';
+
+/** Menggambar daftar halaman hasil jelajah; `checked` (Set indeks) menjaga pilihan saat bahasa diganti. */
+function renderCrawlList(result, host, checked = null) {
+  crawlPages = result.pages;
+  $('crawlInfo').textContent = t('crawl.info', { n: result.pages.length, host });
+  const notes = [];
+  if (result.skipped.length) notes.push(t('crawl.skipped', { n: result.skipped.length }));
+  if (result.partial) notes.push(t('crawl.partial'));
+  $('crawlNote').textContent = notes.join(' ');
+  $('crawlList').replaceChildren(...result.pages.map((page, index) => {
+    const li = document.createElement('li');
+    li.className = 'item';
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.checked = checked ? checked.has(index) : true;
+    box.dataset.index = String(index);
+    box.addEventListener('change', updateCrawlSave);
+    const info = document.createElement('div');
+    info.className = 'info';
+    const h = document.createElement('h3');
+    h.textContent = page.title;
+    const meta = document.createElement('p');
+    meta.textContent = `${page.url} · ${t('crawl.chars', { n: page.chars.toLocaleString(locale()) })}`;
+    info.append(h, meta);
+    li.append(box, info);
+    li.addEventListener('click', (e) => { if (e.target !== box) { box.checked = !box.checked; updateCrawlSave(); } });
+    return li;
+  }));
+  updateCrawlSave();
+}
+
+function openCrawlDialog(result, host) {
+  crawlResult = result;
+  crawlHost = host;
+  $('crawlError').textContent = '';
+  renderCrawlList(result, host);
+  $('crawlDialog').showModal();
+}
+
+async function fetchFromUrl() {
+  const url = $('docUrl').value.trim();
+  $('editorError').textContent = '';
+  if (!url) { $('urlInfo').textContent = t('ed.urlEmpty'); return; }
+  const crawl = $('crawlSite').checked;
+  $('urlInfo').textContent = t('ed.fetching');
+  $('fetchUrl').disabled = true;
+  $('save').disabled = true;
+  try {
+    const result = await api.importUrl(url, crawl);
+    if (crawl) {
+      $('urlInfo').textContent = '';
+      openCrawlDialog(result, new URL(result.pages[0].url).hostname);
+    } else {
+      $('docContent').value = result.content;
+      if (!$('docTitle').value.trim()) $('docTitle').value = result.title;
+      $('urlInfo').textContent = t('ed.fetched', { format: result.format, chars: result.chars.toLocaleString(locale()) });
+    }
+  } catch (err) {
+    $('urlInfo').textContent = '';
+    if (err.status === 401) { $('editor').close(); sessionExpired(); } else $('editorError').textContent = err.message;
+  } finally {
+    $('fetchUrl').disabled = false;
+    $('save').disabled = false;
+  }
+}
+
+$('fetchUrl').addEventListener('click', fetchFromUrl);
+$('docUrl').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); fetchFromUrl(); } });
+
+$('crawlToggle').addEventListener('click', () => {
+  const boxes = [...$('crawlList').querySelectorAll('input')];
+  const all = boxes.every((b) => b.checked);
+  boxes.forEach((b) => { b.checked = !all; });
+  updateCrawlSave();
+});
+
+$('crawlSave').addEventListener('click', async () => {
+  const chosen = [...$('crawlList').querySelectorAll('input:checked')].map((b) => crawlPages[Number(b.dataset.index)]);
+  if (!chosen.length) { $('crawlError').textContent = t('crawl.none'); return; }
+  $('crawlSave').disabled = true;
+  $('crawlToggle').disabled = true;
+  $('crawlError').textContent = '';
+  let saved = 0;
+  let failure = '';
+  let failed = 0;
+  try {
+    for (const page of chosen) {
+      $('crawlSave').textContent = t('crawl.saving', { done: saved + failed + 1, total: chosen.length });
+      try { await api.create({ title: page.title, content: page.content, enabled: true }); saved += 1; } catch (err) {
+        if (err.status === 401) { $('crawlDialog').close(); $('editor').close(); sessionExpired(); return; }
+        failed += 1;
+        failure = err.message;
+      }
+    }
+  } finally {
+    $('crawlToggle').disabled = false;
+    updateCrawlSave();
+  }
+  if (saved) { toast(t('crawl.saved', { n: saved })); await refresh(); }
+  if (failed) { $('crawlError').textContent = t('crawl.failed', { n: failed, message: failure }); return; }
+  $('crawlDialog').close();
+  $('editor').close();
+});
+
 $('editorForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const data = { title: $('docTitle').value, content: $('docContent').value, enabled: $('docEnabled').checked };
@@ -506,6 +624,10 @@ onLanguageChange(async () => {
   renderAssistantMeta();
   updatePendingCount();
   if ($('usersDialog').open) await renderUsers().catch(() => {});
+  if ($('crawlDialog').open && crawlResult) {
+    const checked = new Set([...$('crawlList').querySelectorAll('input:checked')].map((b) => Number(b.dataset.index)));
+    renderCrawlList(crawlResult, crawlHost, checked);
+  }
   if ($('editor').open) $('editorTitle').textContent = editingId ? t('ed.edit') : t('ed.add');
   if ($('passwordDialog').open) openPasswordDialogLabels();
   if ($('profileDialog').open && profileTarget) $('pfTitle').textContent = profileTarget.id === me.id ? t('pf.titleSelf') : t('pf.titleOther', { username: profileTarget.username });

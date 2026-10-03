@@ -2,8 +2,8 @@
 const fields = ({ title, content, enabled } = {}) => ({ title, content, enabled });
 
 export class AdminKnowledgeController {
-  constructor({ listKnowledge, getKnowledge, saveKnowledge, deleteKnowledge, searchKnowledge, extractDocumentText }) {
-    Object.assign(this, { listKnowledge, getKnowledge, saveKnowledge, deleteKnowledge, searchKnowledge, extractDocumentText });
+  constructor({ listKnowledge, getKnowledge, saveKnowledge, deleteKnowledge, searchKnowledge, extractDocumentText, importFromUrl, crawlWebsite }) {
+    Object.assign(this, { listKnowledge, getKnowledge, saveKnowledge, deleteKnowledge, searchKnowledge, extractDocumentText, importFromUrl, crawlWebsite });
   }
   list = async () => ({ status: 200, body: { items: await this.listKnowledge.execute() } });
   get = async ({ params }) => ({ status: 200, body: await this.getKnowledge.execute(params) });
@@ -14,6 +14,14 @@ export class AdminKnowledgeController {
     let filename = '';
     try { filename = decodeURIComponent(String(headers['x-filename'] ?? '')); } catch { /* nama rusak: dianggap kosong */ }
     return { status: 200, body: await this.extractDocumentText.execute({ filename, buffer: body }) };
+  };
+  /** Ambil teks dari sebuah URL (atau jelajahi situs bila crawl=true). Tidak menyimpan; admin meninjau dulu. */
+  importUrl = async ({ body, signal }) => {
+    const url = typeof body.url === 'string' ? body.url : undefined;
+    const result = body.crawl === true
+      ? await this.crawlWebsite.execute({ url, maxPages: Number.isInteger(body.maxPages) ? body.maxPages : undefined, signal })
+      : await this.importFromUrl.execute({ url, signal });
+    return { status: 200, body: result };
   };
   search = async ({ body, signal }) => ({ status: 200, body: await this.searchKnowledge.execute({ query: body?.query, signal }) });
   remove = async ({ params }) => { await this.deleteKnowledge.execute(params); return { status: 204 }; };

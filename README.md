@@ -246,7 +246,7 @@ Mengganti komponen cukup menulis adapter baru dan mengubah `bootstrap.js` — us
 ## Pengujian
 
 ```bash
-npm test                                                   # 96 tes; 8 tes PostgreSQL otomatis dilewati
+npm test                                                   # 111 tes; 8 tes PostgreSQL otomatis dilewati
 TEST_DATABASE_URL=postgres://user:pass@localhost:5432/ragtest npm test   # + tes PostgreSQL/pgvector
 ```
 
@@ -289,3 +289,21 @@ Di **Tambah/Edit knowledge**, admin bisa **mengunggah file** atau **menulis send
 - Keamanan: jenis file diperiksa dari isinya (bukan hanya nama), arsip DOCX/PPTX dibatasi ukuran setelah dibuka (anti "zip bomb"), PDF dibaca tanpa menjalankan skrip (PDF.js 6.x; versi 5.6–6.2 punya celah eksekusi JavaScript dan **jangan diturunkan**). Endpoint: `POST /api/admin/knowledge/extract` (isi mentah + header `x-filename`; sesi login atau Bearer token).
 - Dokumen besar menghasilkan banyak chunk; dengan embedding di CPU, **menyimpannya bisa memakan waktu** (puluhan detik sampai menit). Bila di balik Cloudflare permintaan melewati ~100 detik, kemungkinan muncul galat 524 padahal indeksnya tetap selesai di server; muat ulang daftar untuk memastikan.
 - Membutuhkan **Node ≥ 22.13** (image Docker memakai Node 24).
+
+## Ambil knowledge dari URL (website perusahaan)
+
+Di **Tambah knowledge** ada kolom **"Atau ambil dari alamat web (URL)"**.
+
+- **Satu halaman:** tempel alamat (mis. `www.perusahaan.co.id/tentang`; tanpa skema dianggap `https://`), klik **Ambil**. Teks halaman muncul di editor untuk diperiksa, lalu disimpan seperti knowledge biasa. Baris `Sumber: <url>` ditambahkan di akhir isi.
+- **Seluruh situs:** centang **"Ambil juga halaman lain di situs ini"**. Server mengambil halaman awal beserta tautan di situs yang sama (satu tingkat, maksimal 10 halaman; batas keras 20), lalu menampilkan daftar untuk dipilih. Tiap halaman yang dicentang disimpan sebagai **knowledge terpisah** (jadi bisa dinonaktifkan atau dihapus satu per satu). Halaman akun/keranjang, gambar, dan berkas dokumen dilewati; halaman duplikat atau kosong dibuang.
+- Alamat yang menunjuk ke **PDF, DOCX, atau PPTX** juga dibaca (lewat pembaca file yang sama).
+- Tentang isinya: menu, footer, dan form dibuang; area `<main>`/`<article>` diutamakan. Halaman yang kontennya baru muncul lewat **JavaScript** (aplikasi React/SPA) **tidak terbaca**, dan akan ditolak dengan pesan yang jelas. `robots.txt` tidak dibaca: **hanya ambil situs milik Anda atau yang Anda berhak memakai isinya.**
+- Batas: 10 MB per halaman, 10 dtk menunggu respons, 60 dtk untuk seluruh penjelajahan (sisanya ditandai "dihentikan karena batas waktu").
+- Endpoint: `POST /api/admin/knowledge/import-url` `{url, crawl?, maxPages?}` (sesi login atau Bearer token). Tidak menyimpan apa pun; hasilnya disimpan lewat endpoint knowledge biasa.
+
+**Keamanan (SSRF).** Fitur ini membuat server meminta halaman atas perintah pengguna, sehingga tanpa pengaman bisa dipakai menjangkau layanan internal (LLM di `127.0.0.1:8100`, PostgreSQL, n8n, metadata cloud, perangkat LAN). Karena itu:
+- Hanya alamat **internet publik** yang boleh dituju. Loopback, jaringan privat (10/8, 172.16/12, 192.168/16), link-local, CGNAT (100.64/10, dipakai VPN/WARP), multicast, serta IPv6 yang setara (termasuk bentuk IPv4-dalam-IPv6) **ditolak**. IP dalam bentuk desimal/heksadesimal ikut tertangkap.
+- Alamat diperiksa **saat koneksi dibuat** (bukan hanya saat URL dibaca), sehingga trik DNS-rebinding tidak berhasil; setiap **pengalihan (redirect)** diperiksa ulang (maks 5), dan skema selain http/https ditolak.
+- Port dibatasi 80, 443, 8080, 8443; URL berisi `user:password@` ditolak; tanpa cookie dan kredensial.
+- Ukuran dibatasi juga **setelah dekompresi** (gzip/br), dan permintaan ikut dibatalkan bila klien memutus koneksi.
+- Bila perlu mengambil halaman dari **jaringan internal** (mis. wiki perusahaan), setel `URL_IMPORT_ALLOW_PRIVATE=true` di `.env`. Itu mematikan semua pengaman di atas, jadi aktifkan hanya bila **semua admin dipercaya**.

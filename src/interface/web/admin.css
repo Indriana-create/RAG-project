@@ -68,3 +68,8 @@ dialog p.muted { font-size: .85rem; margin-top: 4px; }
 @media (prefers-color-scheme: dark) { .ok { color: #6fd29a; } }
 .auth-switch { margin: 16px 0 0; }
 button.link { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; cursor: pointer; text-decoration: underline; }
+
+.crawl .item { grid-template-columns: auto 1fr; cursor: pointer; }
+.crawl .item input { width: 18px; height: 18px; }
+.crawl .item .info p { overflow-wrap: anywhere; }
+#crawlDialog .list { max-height: 50vh; overflow: auto; margin: 12px 0; }

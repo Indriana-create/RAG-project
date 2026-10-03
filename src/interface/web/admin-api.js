@@ -48,6 +48,7 @@ export function createAdminApi() {
       if (!res.ok) throw Object.assign(new Error(data.error ?? t('common.requestFailed')), { status: res.status });
       return data;
     },
+    importUrl: (url, crawl = false) => request('/api/admin/knowledge/import-url', json('POST', { url, crawl })),
     search: (query) => request('/api/admin/search', json('POST', { query })),
     remove: (id) => request(knowledge(id), { method: 'DELETE' }),
   };

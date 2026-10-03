@@ -31,6 +31,7 @@ const { server, stats, seeded, seededAdmin } = await buildApp({
   sessionTtlSeconds: ttlHours * 3600,
   trustProxy: env.TRUST_PROXY === 'true',
   cookieSecure: env.COOKIE_SECURE || 'auto',
+  allowPrivateUrls: env.URL_IMPORT_ALLOW_PRIVATE === 'true',
 });
 
 if (seededAdmin.created) {

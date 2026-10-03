@@ -116,6 +116,13 @@
       <label for="docFile" data-i18n="ed.file">Unggah file (.md / .txt, maks 1 MB)</label>
       <input id="docFile" type="file" accept=".pdf,.docx,.pptx,.txt,.md,.markdown,.csv">
       <p id="fileInfo" class="muted" role="status"></p>
+      <label for="docUrl" data-i18n="ed.url">Atau ambil dari alamat web (URL)</label>
+      <div class="pw">
+        <input id="docUrl" type="text" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="2048" placeholder="https://www.perusahaan-anda.co.id/tentang" data-i18n-placeholder="ed.urlPh">
+        <button type="button" class="ghost sm" id="fetchUrl" data-i18n="ed.fetch">Ambil</button>
+      </div>
+      <label class="check"><input id="crawlSite" type="checkbox"> <span data-i18n="ed.crawl">Ambil juga halaman lain di situs ini (maks 10 halaman)</span></label>
+      <p id="urlInfo" class="muted" role="status"></p>
       <label for="docContent" data-i18n="ed.content">Isi</label>
       <textarea id="docContent" rows="12" required></textarea>
       <label class="check"><input id="docEnabled" type="checkbox" checked> <span data-i18n="ed.enabled">Aktif (dipakai chatbot)</span></label>
@@ -125,6 +132,19 @@
         <button class="primary" type="submit" id="save" data-i18n="ed.save">Simpan</button>
       </div>
     </form>
+  </dialog>
+
+  <dialog id="crawlDialog">
+    <h2 data-i18n="crawl.title">Pilih halaman yang akan disimpan</h2>
+    <p id="crawlInfo" class="muted"></p>
+    <ul id="crawlList" class="list crawl"></ul>
+    <p id="crawlNote" class="muted"></p>
+    <p id="crawlError" class="error" role="alert"></p>
+    <div class="actions">
+      <button class="ghost" type="button" id="crawlToggle" data-i18n="crawl.toggle">Pilih semua / kosongkan</button>
+      <button class="ghost" type="button" data-close="crawlDialog" data-i18n="common.cancel">Batal</button>
+      <button class="primary" type="button" id="crawlSave"></button>
+    </div>
   </dialog>
 
   <dialog id="passwordDialog">
