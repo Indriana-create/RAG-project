@@ -16,10 +16,14 @@
  *
  * @typedef {Object} Retriever
  * @property {(chunks: Chunk[]) => Promise<void>} index
- * @property {(query: string, topK: number) => Promise<Array<{chunk: Chunk, score: number}>>} search
+ * @property {(query: string, topK: number, options?: {signal?: AbortSignal}) => Promise<Array<{chunk: Chunk, score: number}>>} search
+ *
+ * @typedef {Object} Embedder
+ * @property {(texts: string[], options?: {signal?: AbortSignal}) => Promise<number[][]>} embed
  *
  * @typedef {Object} AnswerGenerator
- * @property {(input: {question: string, contexts: Chunk[], history: Array<{role:string,content:string}>}) => Promise<string>} generate
+ * @property {(input: {question: string, contexts: Chunk[], history: Array<{role:string,content:string}>, signal?: AbortSignal}) => Promise<string>} generate
+ * @property {(input: {question: string, contexts: Chunk[], history: Array<{role:string,content:string}>, signal?: AbortSignal}) => AsyncIterable<string>} [stream] opsional: token demi token
  *
  * @typedef {Object} ChatHistoryRepository
  * @property {(sessionId: string, message: object) => Promise<void>} append

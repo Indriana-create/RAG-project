@@ -4,15 +4,53 @@ services:
     ports:
       - "3000:3000"
     environment:
-      # Token untuk /admin.html. Kosong = token acak dicetak di log (berubah tiap restart).
       ADMIN_TOKEN: ${ADMIN_TOKEN:-}
-      # Opsional: kosongkan untuk mode ekstraktif offline.
+      # --- PostgreSQL (kosong = simpan di file JSON pada volume rag-data) ---
+      DATABASE_URL: ${DATABASE_URL:-}
+      DATABASE_SSL: ${DATABASE_SSL:-}
+      # --- LLM lokal (OpenAI-compatible). Dari kontainer, host Windows/Mac = host.docker.internal ---
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_TEMPERATURE: ${LLM_TEMPERATURE:-}
+      LLM_MAX_TOKENS: ${LLM_MAX_TOKENS:-}
+      LLM_TIMEOUT_MS: ${LLM_TIMEOUT_MS:-}
+      # --- Pencarian semantik (butuh DATABASE_URL dengan pgvector) ---
+      EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-}
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
+      EMBEDDING_DOC_PREFIX: ${EMBEDDING_DOC_PREFIX:-}
+      EMBEDDING_QUERY_PREFIX: ${EMBEDDING_QUERY_PREFIX:-}
+      MIN_SCORE: ${MIN_SCORE:-}
+      SEED_ON_EMPTY: ${SEED_ON_EMPTY:-}
+      # --- Opsional: Claude API bila LLM_BASE_URL kosong ---
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-5-5}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
-      # Knowledge hasil kelolaan admin disimpan di sini dan bertahan antar restart.
       - rag-data:/app/data
+    depends_on:
+      db:
+        condition: service_healthy
+        required: false
     restart: unless-stopped
+
+  # Hanya untuk pengembangan lokal: docker compose --profile db up --build
+  # lalu DATABASE_URL=postgres://postgres:rag@db:5432/rag. Produksi memakai PostgreSQL server Anda sendiri.
+  db:
+    image: pgvector/pgvector:pg17
+    profiles: ["db"]
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rag}
+      POSTGRES_DB: rag
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d rag"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
 volumes:
   rag-data:
+  pgdata:

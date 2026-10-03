@@ -18,6 +18,7 @@ export function createAdminApi(getToken) {
     get: (id) => request(url(id)),
     create: (data) => request('/api/admin/knowledge', json('POST', data)),
     update: (id, data) => request(url(id), json('PUT', data)),
+    search: (query) => request('/api/admin/search', json('POST', { query })),
     remove: (id) => request(url(id), { method: 'DELETE' }),
   };
 }

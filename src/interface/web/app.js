@@ -12,17 +12,20 @@ function getSessionId() {
 }
 let sessionId = getSessionId();
 
+function renderSources(el, sources) {
+  if (!sources.length) return;
+  const box = document.createElement('div');
+  box.className = 'sources';
+  for (const s of sources) { const chip = document.createElement('span'); chip.textContent = `📄 ${s.title}`; box.append(chip); }
+  el.append(box);
+}
+
 function addMessage(role, text, sources = []) {
   $('welcome')?.remove();
   const el = document.createElement('div');
   el.className = `msg ${role}`;
   el.textContent = text; // textContent: aman dari XSS
-  if (sources.length) {
-    const box = document.createElement('div');
-    box.className = 'sources';
-    for (const s of sources) { const chip = document.createElement('span'); chip.textContent = `📄 ${s.title}`; box.append(chip); }
-    el.append(box);
-  }
+  renderSources(el, sources);
   messagesEl.append(el);
   messagesEl.scrollTop = messagesEl.scrollHeight;
   return el;
@@ -39,15 +42,24 @@ async function send(question) {
   addMessage('user', question);
   input.value = ''; input.style.height = 'auto';
   sendBtn.disabled = true;
-  const typing = addTyping();
+  const el = addTyping();
+  let body = null;
   try {
-    const reply = await api.ask(sessionId, question);
-    typing.remove();
-    addMessage('assistant', reply.content, reply.sources);
+    const reply = await api.askStream(sessionId, question, {
+      onToken: (text) => {
+        if (!body) { body = document.createElement('span'); el.replaceChildren(body); }
+        body.textContent += text;
+        const nearBottom = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight < 120;
+        if (nearBottom) messagesEl.scrollTop = messagesEl.scrollHeight;
+      },
+    });
+    renderSources(el, reply.sources);
   } catch (err) {
-    typing.remove();
-    addMessage('assistant', err.message, []).classList.add('error');
+    el.classList.add('error');
+    if (body) body.textContent += `\n\n⚠ ${err.message}`;
+    else el.textContent = err.message;
   } finally {
+    messagesEl.scrollTop = messagesEl.scrollHeight;
     sendBtn.disabled = false; input.focus();
   }
 }

@@ -33,6 +33,16 @@
       </div>
       <ul id="list" class="list"></ul>
       <p id="empty" class="card muted" hidden>Belum ada knowledge. Klik “Tambah knowledge” atau unggah file .md / .txt.</p>
+
+      <details class="card tester">
+        <summary>Uji pencarian <span class="muted">— lihat chunk yang diambil dan skornya (tanpa LLM)</span></summary>
+        <form id="searchForm" class="search-row">
+          <input id="searchQuery" placeholder="Tulis pertanyaan uji, mis. berapa lama garansi?" maxlength="1000" required>
+          <button class="primary" type="submit">Cari</button>
+        </form>
+        <p id="searchInfo" class="muted"></p>
+        <ol id="searchResults" class="hits"></ol>
+      </details>
     </section>
   </main>
 

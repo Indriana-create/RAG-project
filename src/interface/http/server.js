@@ -1,7 +1,7 @@
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { NotFoundError, ValidationError } from '../../application/errors.js';
+import { NotFoundError, UpstreamError, ValidationError } from '../../application/errors.js';
 
 const MIME = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.svg': 'image/svg+xml' };
 const MAX_BODY = 1_000_000;
@@ -16,8 +16,10 @@ export function createServer({ chat, adminKnowledge, authenticateAdmin, publicDi
   const routes = [
     route('GET', '/api/health', async () => ({ status: 200, body: { ok: true } })),
     route('POST', '/api/chat', chat.chat),
+    route('POST', '/api/chat/stream', chat.chatStream),
     route('GET', '/api/history/:sessionId', chat.history),
     route('DELETE', '/api/history/:sessionId', chat.clear),
+    route('POST', '/api/admin/search', adminKnowledge.search, { admin: true }),
     route('GET', '/api/admin/knowledge', adminKnowledge.list, { admin: true }),
     route('POST', '/api/admin/knowledge', adminKnowledge.create, { admin: true }),
     route('GET', '/api/admin/knowledge/:id', adminKnowledge.get, { admin: true }),
@@ -36,17 +38,53 @@ export function createServer({ chat, adminKnowledge, authenticateAdmin, publicDi
         if (!match || req.method !== method) continue;
         if (admin && !authenticateAdmin(req)) return send(res, 401, { error: 'Tidak diizinkan: token admin salah atau tidak ada' });
         const body = ['POST', 'PUT', 'PATCH'].includes(method) ? await readJson(req) : undefined;
-        const out = await handler({ body, params: { ...match.groups } });
+        const abort = new AbortController();
+        res.on('close', () => abort.abort()); // klien memutus koneksi → hentikan LLM
+        const out = await handler({ body, params: { ...match.groups }, signal: abort.signal });
+        if (out.stream) return await sendEvents(res, out.stream, abort.signal);
         return send(res, out.status, out.body);
       }
       return send(res, 404, { error: 'Tidak ditemukan' });
     } catch (err) {
-      if (err instanceof ValidationError) return send(res, 400, { error: err.message });
-      if (err instanceof NotFoundError) return send(res, 404, { error: err.message });
-      console.error(err);
-      return send(res, 500, { error: 'Terjadi kesalahan pada server' });
+      const { status, message } = toHttpError(err);
+      return send(res, status, { error: message });
     }
   });
+}
+
+/** Memetakan error ke respons; detail internal hanya masuk log, tidak ke klien. */
+function toHttpError(err) {
+  if (err instanceof ValidationError) return { status: 400, message: err.message };
+  if (err instanceof NotFoundError) return { status: 404, message: err.message };
+  if (err.name === 'AbortError') return { status: 499, message: 'Permintaan dibatalkan' };
+  console.error(err);
+  if (err instanceof UpstreamError) return { status: 502, message: 'Layanan model bahasa sedang tidak tersedia. Coba lagi sebentar.' };
+  return { status: 500, message: 'Terjadi kesalahan pada server' };
+}
+
+/**
+ * Mengalirkan event ke klien (SSE). Event pertama ditunggu sebelum header dikirim,
+ * sehingga error validasi tetap menjadi respons JSON biasa (400), bukan stream.
+ */
+async function sendEvents(res, events, signal) {
+  const iterator = events[Symbol.asyncIterator]();
+  let step = await iterator.next();
+  res.writeHead(200, {
+    'content-type': 'text/event-stream; charset=utf-8',
+    'cache-control': 'no-cache, no-transform',
+    'x-accel-buffering': 'no',
+  });
+  try {
+    while (!step.done) {
+      res.write(`data: ${JSON.stringify(step.value)}\n\n`);
+      step = await iterator.next();
+    }
+  } catch (err) {
+    if (!signal.aborted) res.write(`data: ${JSON.stringify({ type: 'error', message: toHttpError(err).message })}\n\n`);
+  } finally {
+    await iterator.return?.();
+    res.end();
+  }
 }
 
 async function serveStatic(res, root, pathname) {

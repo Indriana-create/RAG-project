@@ -37,3 +37,12 @@ dialog h2, .card h2 { margin: 0 0 4px; font-size: 1.15rem; }
 #toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 10px; opacity: 0; pointer-events: none; transition: all .2s; font-size: .9rem; }
 #toast.show { opacity: 1; transform: translate(-50%, 0); }
 @media (max-width: 600px) { .item { grid-template-columns: 1fr; } .toolbar { flex-direction: column; align-items: stretch; } }
+
+.tester { margin-top: 18px; }
+.tester summary { cursor: pointer; font-weight: 500; }
+.search-row { display: flex; gap: 8px; margin-top: 12px; }
+.hits { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.hit { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; background: var(--bg); }
+.hit.below { opacity: .6; }
+.hit-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.hit p { margin: 6px 0 0; font-size: .85rem; color: var(--muted); overflow-wrap: anywhere; }

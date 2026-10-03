@@ -142,6 +142,40 @@ $('loginForm').addEventListener('submit', (e) => {
 });
 $('logout').addEventListener('click', () => showLogin());
 $('add').addEventListener('click', () => openEditor());
+$('searchForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const info = $('searchInfo');
+  info.textContent = 'Mencari…';
+  try {
+    const { hits, minScore } = await api.search($('searchQuery').value);
+    info.textContent = hits.length
+      ? `Ambang saat ini (MIN_SCORE): ${minScore}. Chunk di bawah ambang tidak dipakai chatbot.`
+      : 'Tidak ada hasil.';
+    $('searchResults').replaceChildren(...hits.map(renderHit));
+  } catch (err) {
+    if (err.status === 401) return showLogin('Sesi berakhir, masuk lagi.');
+    info.textContent = err.message;
+    $('searchResults').replaceChildren();
+  }
+});
+
+function renderHit(hit) {
+  const li = document.createElement('li');
+  li.className = `hit${hit.aboveThreshold ? '' : ' below'}`;
+  const head = document.createElement('div');
+  head.className = 'hit-head';
+  const title = document.createElement('strong');
+  title.textContent = `${hit.title} · chunk ${hit.chunk}`;
+  const score = document.createElement('span');
+  score.className = 'badge';
+  score.textContent = `skor ${hit.score} · ${hit.aboveThreshold ? 'dipakai' : 'di bawah ambang'}`;
+  head.append(title, score);
+  const text = document.createElement('p');
+  text.textContent = hit.text.length > 240 ? `${hit.text.slice(0, 240)}…` : hit.text;
+  li.append(head, text);
+  return li;
+}
+
 $('cancel').addEventListener('click', () => $('editor').close());
 
 $('docFile').addEventListener('change', async (e) => {

@@ -8,9 +8,17 @@ import { createKnowledgeDocument } from '../src/domain/knowledge-document.js';
 import { ValidationError } from '../src/domain/errors.js';
 import { JsonFileKnowledgeRepository } from '../src/infrastructure/persistence/json-file-knowledge-repository.js';
 import { buildApp } from '../src/composition.js';
+import { createDependencies } from '../src/bootstrap.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TOKEN = 'rahasia-test';
+const seedDir = path.join(root, 'knowledge');
+const publicDir = path.join(root, 'src/interface/web');
+
+async function build(dataDir) {
+  const deps = await createDependencies({ DATA_DIR: dataDir });
+  return buildApp({ ...deps, seedDir, publicDir, adminToken: TOKEN });
+}
 
 test('createKnowledgeDocument memvalidasi input', () => {
   const ok = { id: '1', title: ' Judul ', content: ' isi ', createdAt: 'x', updatedAt: 'x' };
@@ -39,7 +47,7 @@ test('repository JSON menyimpan permanen dan bertahan antar instance', async () 
 
 async function startApp() {
   const dataDir = await mkdtemp(path.join(os.tmpdir(), 'rag-app-'));
-  const app = await buildApp({ dataDir, seedDir: path.join(root, 'knowledge'), publicDir: path.join(root, 'src/interface/web'), adminToken: TOKEN });
+  const app = await build(dataDir);
   await new Promise((r) => app.server.listen(0, r));
   const base = `http://localhost:${app.server.address().port}`;
   const call = (method, url, body, token = TOKEN) => fetch(base + url, {
@@ -105,13 +113,28 @@ test('validasi input admin dan mass-assignment diabaikan', async () => {
   } finally { await stop(); }
 });
 
+test('API uji pencarian admin: skor, ambang, dan otorisasi', async () => {
+  const { call, stop } = await startApp();
+  try {
+    assert.equal((await call('POST', '/api/admin/search', { query: 'pengiriman' }, null)).status, 401);
+    assert.equal((await call('POST', '/api/admin/search', { query: ' ' })).status, 400);
+    const res = await call('POST', '/api/admin/search', { query: 'berapa lama pengiriman luar Jawa?' });
+    assert.equal(res.status, 200);
+    const { hits, minScore } = await res.json();
+    assert.equal(minScore, 0.05);
+    assert.equal(hits[0].title, 'Pengiriman & Pelacakan');
+    assert.ok(hits[0].score >= minScore && hits[0].aboveThreshold);
+    assert.match(hits[0].text, /luar Jawa/);
+  } finally { await stop(); }
+});
+
 test('perubahan tersimpan permanen: restart app tidak mengulang seed', async () => {
   const first = await startApp();
   try {
     const items = (await (await first.call('GET', '/api/admin/knowledge')).json()).items;
     await first.call('DELETE', `/api/admin/knowledge/${items[0].id}`);
     await new Promise((r) => first.app.server.close(r));
-    const again = await buildApp({ dataDir: first.dataDir, seedDir: path.join(root, 'knowledge'), publicDir: path.join(root, 'src/interface/web'), adminToken: TOKEN });
+    const again = await build(first.dataDir);
     assert.equal(again.seeded, 0);
     assert.equal(again.stats.documents, 3);
   } finally { await rm(first.dataDir, { recursive: true, force: true }); }
