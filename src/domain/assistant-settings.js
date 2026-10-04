@@ -30,19 +30,30 @@ export function normalizeSuggestions(value, { lenient = false } = {}) {
   return out;
 }
 
+export const SUGGESTION_LANGUAGES = Object.freeze(['id', 'en']);
+
+/**
+ * Saran pertanyaan per bahasa antarmuka: { id: [...], en: [...] }. Menerima bentuk lama (satu daftar = Indonesia)
+ * dan objek dengan kunci id/en yang berisi array atau teks satu-per-baris.
+ */
+export function normalizeSuggestionSet(value, options) {
+  const set = Array.isArray(value) || typeof value === 'string' ? { id: value } : (value && typeof value === 'object' ? value : {});
+  return { id: normalizeSuggestions(set.id, options), en: normalizeSuggestions(set.en, options) };
+}
+
 /**
  * Pengaturan perilaku asisten, diisi admin:
  *  - name  : nama asisten
  *  - style : instruksi gaya bicara tambahan
  *  - about : keterangan TENTANG asisten itu sendiri (model, kemampuan) yang boleh disebut saat ditanya
- *  - suggestions : saran pertanyaan di layar awal chat (kosong = otomatis dari judul knowledge)
+ *  - suggestions : saran pertanyaan di layar awal chat per bahasa {id, en} (kosong = otomatis dari judul knowledge)
  */
 export function createAssistantSettings({ name, style, about, suggestions }) {
   const settings = { name: clean(name), style: clean(style), about: clean(about) };
   for (const [field, max] of Object.entries(ASSISTANT_LIMITS)) {
     if (settings[field].length > max) throw new ValidationError(`${{ name: 'Nama', style: 'Gaya bicara', about: 'Keterangan tentang asisten' }[field]} maksimal ${max} karakter`);
   }
-  return Object.freeze({ ...settings, suggestions: normalizeSuggestions(suggestions) });
+  return Object.freeze({ ...settings, suggestions: normalizeSuggestionSet(suggestions) });
 }
 
 /** Setelah admin menyimpan, nilai tersimpan dipakai penuh (nama kosong kembali ke nama bawaan); sebelum itu nilai bawaan dari konfigurasi. */

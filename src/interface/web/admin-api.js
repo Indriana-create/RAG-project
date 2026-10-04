@@ -31,6 +31,7 @@ export function createAdminApi() {
     // pengaturan asisten
     assistant: () => request('/api/admin/assistant'),
     suggestAssistant: () => request('/api/admin/assistant/suggest', json('POST')),
+    translateSuggestions: (from, lines) => request('/api/admin/assistant/translate-suggestions', json('POST', { from, lines })),
     saveAssistant: (data) => request('/api/admin/assistant', json('PUT', data)),
     // knowledge
     list: () => request('/api/admin/knowledge').then((r) => r.items),

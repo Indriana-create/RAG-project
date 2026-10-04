@@ -397,7 +397,8 @@ async function loadAssistant() {
     $('asName').value = a.name;
     $('asStyle').value = a.style;
     $('asAbout').value = a.about;
-    $('asSuggestions').value = (a.suggestions ?? []).join('\n');
+    $('asSuggestionsId').value = (a.suggestions?.id ?? []).join('\n');
+    $('asSuggestionsEn').value = (a.suggestions?.en ?? []).join('\n');
     lastAssistant = a;
     renderAssistantMeta();
   } catch (err) {
@@ -410,7 +411,7 @@ $('assistantForm').addEventListener('submit', async (e) => {
   $('asSave').disabled = true;
   $('asError').textContent = '';
   try {
-    await api.saveAssistant({ name: $('asName').value, style: $('asStyle').value, about: $('asAbout').value, suggestions: $('asSuggestions').value });
+    await api.saveAssistant({ name: $('asName').value, style: $('asStyle').value, about: $('asAbout').value, suggestions: { id: $('asSuggestionsId').value, en: $('asSuggestionsEn').value } });
     toast(t('as.saved'));
     await loadAssistant();
   } catch (err) {
@@ -421,21 +422,41 @@ $('assistantForm').addEventListener('submit', async (e) => {
   }
 });
 
-$('asGenerate').addEventListener('click', async () => {
-  $('asGenerate').disabled = true;
+const suggestionButtons = ['asGenerate', 'asToEn', 'asToId'];
+
+/** Menjalankan aksi AI pada kolom saran: tombol dikunci selama berjalan, galat tampil di bawah form. */
+async function suggestionAction(status, action) {
+  suggestionButtons.forEach((id) => { $(id).disabled = true; });
   $('asError').textContent = '';
-  $('asMeta').textContent = t('as.generating');
+  $('asMeta').textContent = status;
   try {
-    const { suggestions } = await api.suggestAssistant();
-    $('asSuggestions').value = suggestions.join('\n');
-    toast(t('as.generated'));
+    await action();
   } catch (err) {
     if (err.status === 401) sessionExpired(); else $('asError').textContent = err.message;
   } finally {
     renderAssistantMeta();
-    $('asGenerate').disabled = false;
+    suggestionButtons.forEach((id) => { $(id).disabled = false; });
   }
-});
+}
+
+$('asGenerate').addEventListener('click', () => suggestionAction(t('as.generating'), async () => {
+  const { suggestions, warning } = await api.suggestAssistant();
+  $('asSuggestionsId').value = suggestions.id.join('\n');
+  $('asSuggestionsEn').value = suggestions.en.join('\n');
+  if (warning) $('asError').textContent = warning;
+  toast(t('as.generated'));
+}));
+
+for (const [button, from, source, target] of [['asToEn', 'id', 'asSuggestionsId', 'asSuggestionsEn'], ['asToId', 'en', 'asSuggestionsEn', 'asSuggestionsId']]) {
+  $(button).addEventListener('click', () => {
+    if (!$(source).value.trim()) { $('asError').textContent = t('as.nothingToTranslate'); return; }
+    return suggestionAction(t('as.translating'), async () => {
+      const { lines } = await api.translateSuggestions(from, $(source).value);
+      $(target).value = lines.join('\n');
+      toast(t('as.translated'));
+    });
+  });
+}
 
 $('searchForm').addEventListener('submit', async (e) => {
   e.preventDefault();

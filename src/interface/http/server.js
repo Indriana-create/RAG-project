@@ -53,6 +53,7 @@ export function createServer({
     route('GET', '/api/admin/assistant', adminAssistant.get, { auth: 'session' }),
     route('PUT', '/api/admin/assistant', adminAssistant.update, { auth: 'session' }),
     route('POST', '/api/admin/assistant/suggest', adminAssistant.suggest, { auth: 'session' }),
+    route('POST', '/api/admin/assistant/translate-suggestions', adminAssistant.translate, { auth: 'session' }),
 
     route('POST', '/api/admin/search', adminKnowledge.search, { auth: 'admin' }),
     route('GET', '/api/admin/knowledge', adminKnowledge.list, { auth: 'admin' }),

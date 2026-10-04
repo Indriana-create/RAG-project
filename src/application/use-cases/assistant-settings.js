@@ -1,4 +1,4 @@
-import { createAssistantSettings, resolvePersona } from '../../domain/assistant-settings.js';
+import { createAssistantSettings, normalizeSuggestionSet, resolvePersona } from '../../domain/assistant-settings.js';
 
 const KEY = 'assistant';
 
@@ -20,17 +20,17 @@ export class AssistantSettingsService {
   async current() { return resolvePersona((await this.#saved())?.value, this.defaults); }
 
   /** Saran pertanyaan yang diatur admin untuk layar awal chat ([] = pakai judul knowledge). */
-  async suggestions() { return (await this.#saved())?.value?.suggestions ?? []; }
+  async suggestions() { return normalizeSuggestionSet((await this.#saved())?.value?.suggestions, { lenient: true }); }
 
   /** Untuk halaman admin: persona + keterangan siapa/kapan terakhir mengubah. */
   async get() {
     const saved = await this.#saved();
-    return { ...resolvePersona(saved?.value, this.defaults), suggestions: saved?.value?.suggestions ?? [], isDefault: !saved, updatedAt: saved?.updatedAt ?? null, updatedBy: saved?.updatedBy ?? null };
+    return { ...resolvePersona(saved?.value, this.defaults), suggestions: normalizeSuggestionSet(saved?.value?.suggestions, { lenient: true }), isDefault: !saved, updatedAt: saved?.updatedAt ?? null, updatedBy: saved?.updatedBy ?? null };
   }
 
   /** `suggestions` yang tidak dikirim (undefined) mempertahankan nilai tersimpan, sehingga klien lama tidak menghapusnya. */
   async update({ name, style, about, suggestions }, updatedBy) {
-    const kept = suggestions === undefined ? (await this.#saved())?.value?.suggestions : suggestions;
+    const kept = suggestions === undefined ? await this.suggestions() : suggestions;
     const value = createAssistantSettings({ name, style, about, suggestions: kept });
     const record = { value, updatedAt: this.now().toISOString(), updatedBy };
     await this.repository.set(KEY, record);

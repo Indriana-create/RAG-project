@@ -246,7 +246,7 @@ Mengganti komponen cukup menulis adapter baru dan mengubah `bootstrap.js` — us
 ## Pengujian
 
 ```bash
-npm test                                                   # 118 tes; 8 tes PostgreSQL otomatis dilewati
+npm test                                                   # 120 tes; 8 tes PostgreSQL otomatis dilewati
 TEST_DATABASE_URL=postgres://user:pass@localhost:5432/ragtest npm test   # + tes PostgreSQL/pgvector
 ```
 
@@ -312,9 +312,10 @@ Di **Tambah knowledge** ada kolom **"Atau ambil dari alamat web (URL)"**.
 
 Tombol saran di layar awal chat **tidak lagi tetap**:
 - **Bawaan (otomatis):** dibuat dari **judul knowledge yang aktif** ("Ceritakan tentang <judul>", maks 4), jadi langsung mengikuti knowledge yang ditambah, diganti, atau dinonaktifkan, dalam bahasa antarmuka (ID/EN) yang dipilih pengunjung. Tanpa knowledge aktif, tidak ada tombol saran.
-- **Diatur admin:** di **Admin → Pengaturan asisten → Saran pertanyaan** (satu per baris, maks 6 baris, 120 karakter per baris). Bila terisi, itu yang dipakai; kosongkan untuk kembali ke otomatis.
-- **Buat dengan AI:** tombol itu meminta LLM menyusun 4 pertanyaan dari knowledge aktif (judul + awal isinya), dalam bahasa yang sama dengan knowledge. Hasilnya hanya **diisikan ke kolom** untuk Anda periksa; baru berlaku setelah klik **Simpan pengaturan**. Memerlukan LLM aktif (`LLM_BASE_URL`); tanpa LLM muncul pesan petunjuk.
-- API: `GET /api/suggestions` (publik) dan `POST /api/admin/assistant/suggest` (sesi login). Daftar saran ikut tersimpan di pengaturan asisten (PostgreSQL atau `settings.json`).
+- **Diatur admin:** di **Admin → Pengaturan asisten** ada dua kolom, **Bahasa Indonesia** dan **English** (satu per baris, maks 6 baris, 120 karakter per baris). Pengunjung melihat daftar sesuai bahasa yang dipilihnya (ID/EN); bila daftar bahasa itu kosong, dipakai daftar bahasa lainnya, dan bila keduanya kosong, tombol dibuat otomatis dari judul knowledge.
+- **Terjemahan otomatis:** bila saat menyimpan hanya satu bahasa yang terisi, bahasa lainnya **diterjemahkan oleh LLM** dan ikut disimpan (gagal atau LLM mati: tersimpan apa adanya). Tombol **Terjemahkan ke English / ke Indonesia (AI)** menerjemahkan isi kolom yang sedang ditulis agar bisa diperiksa dulu. Ubah salah satu kolom setelah keduanya terisi tidak otomatis menyinkronkan yang lain: klik tombol terjemahkan lagi.
+- **Buat dengan AI:** tombol itu meminta LLM menyusun 4 pertanyaan berbahasa Indonesia dari knowledge aktif (judul + awal isinya), lalu menerjemahkannya ke English. Hasilnya hanya **diisikan ke kolom** untuk Anda periksa; baru berlaku setelah klik **Simpan pengaturan**. Memerlukan LLM aktif (`LLM_BASE_URL`); tanpa LLM muncul pesan petunjuk.
+- API: `GET /api/suggestions` (publik; `{suggestions: {id, en}, topics}`), `POST /api/admin/assistant/suggest` dan `POST /api/admin/assistant/translate-suggestions` `{from, lines}` (sesi login). Daftar saran ikut tersimpan di pengaturan asisten (PostgreSQL atau `settings.json`); data lama berupa satu daftar dibaca sebagai Indonesia.
 
 ## Sumber yang bisa diklik
 

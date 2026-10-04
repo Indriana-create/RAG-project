@@ -7,7 +7,7 @@ import {
   ApproveAdminUser, ChangeOwnPassword, CreateAdminUser, DeleteAdminUser, ListAdminUsers, LoginAdmin, RegisterAccount, ResetAdminPassword, UpdateAdminProfile, ResolveAdminSession, SeedAdminUser,
 } from './application/use-cases/admin-auth.js';
 import { AssistantSettingsService } from './application/use-cases/assistant-settings.js';
-import { GenerateSuggestions, GetSuggestions } from './application/use-cases/suggestions.js';
+import { GenerateSuggestions, GetSuggestions, TranslateSuggestions, completeSuggestionSet } from './application/use-cases/suggestions.js';
 import { SearchKnowledge } from './application/use-cases/search-knowledge.js';
 import { findSourceUrl } from './domain/web-url.js';
 import { ExtractDocumentText } from './application/use-cases/extract-document-text.js';
@@ -76,7 +76,12 @@ export async function buildApp({
       importFromUrl: new ImportKnowledgeFromUrl({ reader: webReader }),
       crawlWebsite: new CrawlWebsite({ reader: webReader }),
     }),
-    adminAssistant: new AdminAssistantController({ assistant, generateSuggestions: new GenerateSuggestions({ repository, generator: answerGenerator }) }),
+    adminAssistant: new AdminAssistantController({
+      assistant,
+      generateSuggestions: new GenerateSuggestions({ repository, generator: answerGenerator }),
+      translateSuggestions: new TranslateSuggestions({ generator: answerGenerator }),
+      completeSuggestions: (set, options) => completeSuggestionSet(answerGenerator, set, options),
+    }),
     adminAccounts: new AdminAccountController({
       loginAdmin: new LoginAdmin({ users: adminUsers, hasher, sessions, throttle }),
       changeOwnPassword: new ChangeOwnPassword({ users: adminUsers, hasher, sessions }),

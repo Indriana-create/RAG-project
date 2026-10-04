@@ -1,5 +1,5 @@
 import { api } from './api.js';
-import { initI18n, onLanguageChange, t } from './i18n.js';
+import { initI18n, language, onLanguageChange, t } from './i18n.js';
 
 initI18n();
 
@@ -119,12 +119,16 @@ input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey)
 input.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = `${input.scrollHeight}px`; });
 
 // Saran pertanyaan di layar awal: yang diatur admin; bila belum ada, dibuat dari judul knowledge aktif.
-let suggestionData = { suggestions: [], topics: [] };
+let suggestionData = { suggestions: { id: [], en: [] }, topics: [] };
 function renderSuggestions() {
   const box = $('suggestions');
   if (!box) return;
-  const items = suggestionData.suggestions.length
-    ? suggestionData.suggestions
+  // Daftar admin untuk bahasa yang dipilih; bila kosong, daftar bahasa lainnya; bila tak ada sama sekali, dari judul knowledge.
+  const lang = language();
+  const configured = suggestionData.suggestions[lang]?.length ? suggestionData.suggestions[lang]
+    : suggestionData.suggestions[lang === 'id' ? 'en' : 'id'] ?? [];
+  const items = configured.length
+    ? configured
     : suggestionData.topics.slice(0, 4).map((title) => t('chat.aboutTopic', { title }));
   box.replaceChildren(...items.map((text) => {
     const b = document.createElement('button');
