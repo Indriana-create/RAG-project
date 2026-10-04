@@ -1,6 +1,6 @@
 # RAG-project
 
-Chatbot Retrieval-Augmented Generation (RAG) dengan antarmuka web dan **halaman admin** untuk mengelola knowledge, dibangun dengan **Clean Architecture**. Bisa berjalan 100% lokal: **PostgreSQL (+ pgvector)** untuk penyimpanan dan pencarian semantik, serta **LLM lokal** (LM Studio / vLLM / llama.cpp) tanpa API berbayar.
+Chatbot Retrieval-Augmented Generation (RAG) dengan antarmuka web dan **halaman admin** untuk mengelola knowledge, dibangun dengan **Clean Architecture**. Bisa berjalan 100% lokal: **PostgreSQL (+ pgvector)** untuk penyimpanan dan pencarian semantik, serta **LLM lokal** (vLLM; server lain berprotokol OpenAI juga bisa) tanpa API berbayar.
 
 ## Menjalankan
 
@@ -67,19 +67,17 @@ Daftar lengkap ada di `.env.example`.
 
 BE memanggil LLM **langsung** lewat endpoint OpenAI-compatible `/v1/chat/completions` (dengan `stream: true`), bukan lewat n8n — jalur chat tetap secepat mungkin.
 
-| Runtime | Contoh `LLM_BASE_URL` |
-|---|---|
-| LM Studio | `http://localhost:1234/v1` |
-| vLLM | `http://localhost:8000/v1` |
-| llama.cpp `llama-server` | `http://localhost:8080/v1` |
-
-`LLM_MODEL` harus sama dengan nama model di server tersebut. Contoh LM Studio:
+Konfigurasi yang dipakai di server ini: **vLLM** (kontainer `vllm-qwen`, hanya dipublikasikan ke loopback host) dengan model Qwen3.5-9B:
 
 ```bash
-LLM_BASE_URL=http://localhost:1234/v1 LLM_MODEL=nama-model ADMIN_PASSWORD=pilih-sendiri npm start
+LLM_BASE_URL=http://127.0.0.1:8100/v1
+LLM_MODEL=qwen3.5-9b          # persis seperti nama model di server vLLM (cek: GET /v1/models)
+LLM_API_KEY=...               # bila vLLM dijalankan dengan --api-key; isi langsung di .env, jangan dibagikan
 ```
 
-**Dari dalam Docker (Windows/Mac)** `localhost` menunjuk ke kontainer itu sendiri. Pakai `http://host.docker.internal:1234/v1`, dan di LM Studio aktifkan **Serve on Local Network** (bila tidak, koneksi dari Docker ditolak). Firewall Windows juga harus mengizinkan port tersebut.
+Aplikasi hanya memerlukan endpoint berprotokol OpenAI, jadi server lain juga bisa dipakai dengan mengganti `LLM_BASE_URL` (mis. LM Studio `http://localhost:1234/v1`, llama.cpp `llama-server` `http://localhost:8080/v1`, Ollama `http://localhost:11434/v1`). Itu opsional dan **tidak dipakai** pada setup ini.
+
+**Dari dalam Docker**, `localhost` menunjuk ke kontainer itu sendiri. Karena vLLM dan PostgreSQL hanya terbuka di loopback host, `docker-compose.server.yml` memakai `network_mode: host` sehingga `127.0.0.1` di `.env` menunjuk ke host. (Docker Desktop di Windows/Mac: gunakan `host.docker.internal` sebagai ganti `localhost`, dan pastikan firewall mengizinkan portnya.)
 
 **Model "thinking" (mis. Qwen3.x di vLLM).** Mode berpikir membuat jawaban lambat muncul. Matikan per permintaan:
 
@@ -246,7 +244,7 @@ Mengganti komponen cukup menulis adapter baru dan mengubah `bootstrap.js` — us
 ## Pengujian
 
 ```bash
-npm test                                                   # 120 tes; 8 tes PostgreSQL otomatis dilewati
+npm test                                                   # 126 tes; 9 tes PostgreSQL otomatis dilewati
 TEST_DATABASE_URL=postgres://user:pass@localhost:5432/ragtest npm test   # + tes PostgreSQL/pgvector
 ```
 
@@ -322,3 +320,13 @@ Tombol saran di layar awal chat **tidak lagi tetap**:
 Di bawah jawaban chatbot, chip sumber (📄 judul knowledge) menjadi **tautan** bila knowledge itu punya alamat web: server membaca baris `Sumber: https://...` di isi knowledge (ditambahkan otomatis oleh **Ambil dari URL**, atau ketik sendiri di akhir isi, juga dikenali `Source:`). Klik membuka halaman aslinya di tab baru (`noopener noreferrer`); knowledge tanpa baris itu tetap label biasa. Alamat web di dalam teks jawaban juga otomatis menjadi tautan.
 
 Keamanan: hanya `http://` dan `https://` yang dijadikan tautan (`javascript:`, `data:`, dst. diabaikan di server **dan** di peramban), alamat tanpa kredensial, dan teks jawaban tidak pernah dimasukkan lewat `innerHTML`. Untuk memperbarui knowledge lama agar chip-nya bisa diklik, tambahkan baris `Sumber: <alamat>` di akhir isinya.
+
+## Jawaban berupa daftar panjang (konteks yang diambil)
+
+Tiap pertanyaan mengambil beberapa **chunk** knowledge yang paling cocok, lalu dikirim ke LLM. Daftar yang panjang (mis. 9 pembicara) tersebar di beberapa chunk, jadi bila yang diambil terlalu sedikit, sebagian butir tidak ikut terbaca dan LLM hanya menyebut sebagian. Karena itu:
+- **`RETRIEVAL_TOP_K`** (bawaan **6**, rentang 1-12) menentukan jumlah chunk teratas per pertanyaan. Naikkan bila daftar panjang masih terpotong; terlalu besar membuat jawaban lebih lambat dan konteks lebih berisik. Panel **Uji pencarian** di admin memakai angka yang sama.
+- Chunk **tetangga** (sebelum dan sesudah) dari dokumen yang sama ikut disertakan selama total konteks muat (maks sekitar 6.000 karakter), lalu disusun menurut urutan baca asli dokumen.
+- LLM diinstruksikan menyebut **semua** butir daftar yang ada pada informasi, dan menyatakan bila daftarnya mungkin tidak lengkap.
+- Teks jawaban dirender dengan **tebal** (`**teks**`), butir daftar, dan tautan; tanda yang tidak berpasangan dibiarkan apa adanya.
+
+Batasan: model hanya melihat yang diambil. Bila sebuah daftar berada di dokumen yang sangat panjang dan sama sekali tidak cocok dengan kata pada pertanyaan, bagian itu tetap bisa terlewat. Untuk daftar penting, tulis juga ringkasan lengkapnya sebagai satu paragraf atau satu knowledge tersendiri.

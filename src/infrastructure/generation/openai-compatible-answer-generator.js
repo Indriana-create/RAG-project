@@ -6,7 +6,7 @@ import { stripThinking, ThinkFilter } from '../llm/think-filter.js';
 
 /**
  * Adapter AnswerGenerator untuk server LLM lokal berprotokol OpenAI
- * (LM Studio, vLLM, llama.cpp server, Ollama /v1). Mendukung streaming token.
+ * (dipakai dengan vLLM; server lain seperti LM Studio, llama.cpp, Ollama /v1 juga kompatibel). Mendukung streaming token.
  *
  * `extraBody`: field tambahan yang diteruskan ke body permintaan (mis. vLLM:
  * `{ chat_template_kwargs: { enable_thinking: false } }`). Field inti (model, messages, stream) tidak bisa ditimpa.

@@ -31,6 +31,13 @@ export class TfidfRetriever {
       .slice(0, topK);
   }
 
+  /** Chunk bertetangga (indeks ±radius pada dokumen yang sama) dari chunk yang diberikan, tanpa chunk itu sendiri. */
+  async neighbors(chunks, { radius = 1 } = {}) {
+    const wanted = new Set();
+    for (const c of chunks) for (let d = -radius; d <= radius; d += 1) if (d !== 0) wanted.add(`${c.documentId}#${c.index + d}`);
+    return this.#entries.filter(({ chunk }) => wanted.has(chunk.id)).map(({ chunk }) => chunk);
+  }
+
   #weigh(tf) {
     return new Map([...tf].filter(([t]) => this.#idf.has(t)).map(([t, f]) => [t, f * this.#idf.get(t)]));
   }

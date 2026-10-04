@@ -21,6 +21,7 @@ const personaFrom = (env) => ({
 });
 
 const DEFAULT_MIN_SCORE = { tfidf: 0.05, vector: 0.35 };
+const DEFAULT_TOP_K = 6; // jumlah chunk teratas yang diambil per pertanyaan (daftar panjang tersebar di beberapa chunk)
 
 const parseExtraBody = (raw) => {
   if (!raw) return {};
@@ -124,6 +125,8 @@ export async function createDependencies(env, { logger = console } = {}) {
 
   const minScore = env.MIN_SCORE ? Number(env.MIN_SCORE) : DEFAULT_MIN_SCORE[mode];
   if (Number.isNaN(minScore)) throw new Error('MIN_SCORE harus berupa angka');
+  const topK = env.RETRIEVAL_TOP_K ? Number(env.RETRIEVAL_TOP_K) : DEFAULT_TOP_K;
+  if (!Number.isInteger(topK) || topK < 1 || topK > 12) throw new Error('RETRIEVAL_TOP_K harus bilangan bulat 1-12');
 
   return {
     repository,
@@ -133,6 +136,7 @@ export async function createDependencies(env, { logger = console } = {}) {
     retriever,
     answerGenerator,
     minScore,
+    topK,
     seed: env.SEED_ON_EMPTY !== 'false',
     description: {
       storage: env.DATABASE_URL ? 'PostgreSQL' : 'file JSON',
@@ -140,6 +144,7 @@ export async function createDependencies(env, { logger = console } = {}) {
       generator: generatorName,
       assistant: persona.name,
       minScore,
+      topK,
       minScoreCalibrated: Boolean(env.MIN_SCORE),
       semantic: mode === 'vector',
     },

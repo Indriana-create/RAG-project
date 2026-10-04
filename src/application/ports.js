@@ -51,6 +51,7 @@
  * @typedef {Object} Retriever
  * @property {(chunks: Chunk[]) => Promise<void>} index
  * @property {(query: string, topK: number, options?: {signal?: AbortSignal}) => Promise<Array<{chunk: Chunk, score: number}>>} search
+ * @property {(chunks: Chunk[], options?: {radius?: number}) => Promise<Chunk[]>} [neighbors] opsional: chunk bertetangga pada dokumen yang sama (memperluas konteks daftar yang terpotong)
  *
  * @typedef {Object} Embedder
  * @property {(texts: string[], options?: {signal?: AbortSignal}) => Promise<number[][]>} embed
