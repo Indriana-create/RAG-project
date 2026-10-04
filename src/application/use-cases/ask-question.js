@@ -10,6 +10,8 @@ const MAX_FOLLOW_UP_TOKENS = 6;
 const NO_TOPICS = { titles: async () => [] };
 const DEFAULT_PERSONA = { current: async () => ({}) };
 const NO_LINKS = { urls: async () => ({}) };
+/** Batas total teks konteks yang dikirim ke LLM (chunk tetangga hanya ditambahkan selama masih muat). */
+const MAX_CONTEXT_CHARS = 6000;
 /** Huruf non-Latin (Arab, Mandarin, dst.) tidak punya kata kunci di tokenizer kita, tetapi pencarian makna multibahasa bisa memprosesnya. */
 const HAS_NON_LATIN_LETTER = /(?!\p{Script=Latin})\p{L}/u;
 
@@ -23,7 +25,7 @@ const HAS_NON_LATIN_LETTER = /(?!\p{Script=Latin})\p{L}/u;
  *   pencarian diulang dengan menyertakan pertanyaan pengguna sebelumnya.
  */
 export class AskQuestion {
-  constructor({ retriever, answerGenerator, history, topics = NO_TOPICS, personas = DEFAULT_PERSONA, sourceLinks = NO_LINKS, topK = 3, minScore = 0.05 }) {
+  constructor({ retriever, answerGenerator, history, topics = NO_TOPICS, personas = DEFAULT_PERSONA, sourceLinks = NO_LINKS, topK = 6, minScore = 0.05 }) {
     Object.assign(this, { retriever, answerGenerator, history, topics, personas, sourceLinks, topK, minScore });
   }
 
@@ -75,6 +77,30 @@ export class AskQuestion {
 
   #relevant(hits) { return hits.filter((h) => h.score >= this.minScore); }
 
+  /**
+   * Konteks untuk LLM: chunk yang cocok, ditambah chunk tetangganya di dokumen yang sama (daftar atau uraian sering
+   * terpotong di batas chunk) selama muat dalam batas, lalu disusun menurut urutan baca: dokumen dengan kecocokan
+   * terbaik dulu, di dalam dokumen berurut sesuai posisi aslinya.
+   */
+  async #contextFor(hits, signal) {
+    const primary = hits.map((h) => h.chunk);
+    const chosen = [...primary];
+    if (primary.length && typeof this.retriever.neighbors === 'function') {
+      const have = new Set(primary.map((c) => c.id));
+      let total = primary.reduce((sum, c) => sum + c.text.length, 0);
+      for (const c of await this.retriever.neighbors(primary, { radius: 1, signal })) {
+        if (have.has(c.id)) continue;
+        if (total + c.text.length > MAX_CONTEXT_CHARS) break;
+        have.add(c.id);
+        chosen.push(c);
+        total += c.text.length;
+      }
+    }
+    const rank = new Map();
+    primary.forEach((c, i) => { if (!rank.has(c.documentId)) rank.set(c.documentId, i); });
+    return chosen.sort((a, b) => rank.get(a.documentId) - rank.get(b.documentId) || a.index - b.index);
+  }
+
   async #prepare({ sessionId, question, signal }) {
     const q = (question ?? '').trim();
     if (!sessionId) throw new ValidationError('sessionId wajib diisi');
@@ -101,7 +127,7 @@ export class AskQuestion {
     const links = found.length ? await this.sourceLinks.urls(found.map((s) => s.id)) : {};
     const sources = found.map((s) => (links[s.id] ? { ...s, url: links[s.id] } : s));
     const topics = hits.length ? [] : await this.topics.titles();
-    return { question: q, previous, contexts: hits.map((h) => h.chunk), sources, topics, persona: await this.personas.current() };
+    return { question: q, previous, contexts: await this.#contextFor(hits, signal), sources, topics, persona: await this.personas.current() };
   }
 
   async #persist(sessionId, turn, answer) {

@@ -244,7 +244,7 @@ Mengganti komponen cukup menulis adapter baru dan mengubah `bootstrap.js` — us
 ## Pengujian
 
 ```bash
-npm test                                                   # 120 tes; 8 tes PostgreSQL otomatis dilewati
+npm test                                                   # 126 tes; 9 tes PostgreSQL otomatis dilewati
 TEST_DATABASE_URL=postgres://user:pass@localhost:5432/ragtest npm test   # + tes PostgreSQL/pgvector
 ```
 
@@ -320,3 +320,13 @@ Tombol saran di layar awal chat **tidak lagi tetap**:
 Di bawah jawaban chatbot, chip sumber (📄 judul knowledge) menjadi **tautan** bila knowledge itu punya alamat web: server membaca baris `Sumber: https://...` di isi knowledge (ditambahkan otomatis oleh **Ambil dari URL**, atau ketik sendiri di akhir isi, juga dikenali `Source:`). Klik membuka halaman aslinya di tab baru (`noopener noreferrer`); knowledge tanpa baris itu tetap label biasa. Alamat web di dalam teks jawaban juga otomatis menjadi tautan.
 
 Keamanan: hanya `http://` dan `https://` yang dijadikan tautan (`javascript:`, `data:`, dst. diabaikan di server **dan** di peramban), alamat tanpa kredensial, dan teks jawaban tidak pernah dimasukkan lewat `innerHTML`. Untuk memperbarui knowledge lama agar chip-nya bisa diklik, tambahkan baris `Sumber: <alamat>` di akhir isinya.
+
+## Jawaban berupa daftar panjang (konteks yang diambil)
+
+Tiap pertanyaan mengambil beberapa **chunk** knowledge yang paling cocok, lalu dikirim ke LLM. Daftar yang panjang (mis. 9 pembicara) tersebar di beberapa chunk, jadi bila yang diambil terlalu sedikit, sebagian butir tidak ikut terbaca dan LLM hanya menyebut sebagian. Karena itu:
+- **`RETRIEVAL_TOP_K`** (bawaan **6**, rentang 1-12) menentukan jumlah chunk teratas per pertanyaan. Naikkan bila daftar panjang masih terpotong; terlalu besar membuat jawaban lebih lambat dan konteks lebih berisik. Panel **Uji pencarian** di admin memakai angka yang sama.
+- Chunk **tetangga** (sebelum dan sesudah) dari dokumen yang sama ikut disertakan selama total konteks muat (maks sekitar 6.000 karakter), lalu disusun menurut urutan baca asli dokumen.
+- LLM diinstruksikan menyebut **semua** butir daftar yang ada pada informasi, dan menyatakan bila daftarnya mungkin tidak lengkap.
+- Teks jawaban dirender dengan **tebal** (`**teks**`), butir daftar, dan tautan; tanda yang tidak berpasangan dibiarkan apa adanya.
+
+Batasan: model hanya melihat yang diambil. Bila sebuah daftar berada di dokumen yang sangat panjang dan sama sekali tidak cocok dengan kata pada pertanyaan, bagian itu tetap bisa terlewat. Untuk daftar penting, tulis juga ringkasan lengkapnya sebagai satu paragraf atau satu knowledge tersendiri.

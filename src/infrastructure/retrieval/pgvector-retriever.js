@@ -62,6 +62,23 @@ export class PgVectorRetriever {
     }
   }
 
+  /** Chunk bertetangga (indeks ±radius pada dokumen yang sama) dari chunk yang diberikan, tanpa chunk itu sendiri. */
+  async neighbors(chunks, { radius = 1 } = {}) {
+    const docs = [];
+    const indexes = [];
+    for (const c of chunks) {
+      for (let d = -radius; d <= radius; d += 1) {
+        if (d !== 0 && c.index + d >= 0) { docs.push(c.documentId); indexes.push(c.index + d); }
+      }
+    }
+    if (!docs.length) return [];
+    const { rows } = await this.pool.query(
+      `SELECT c.document_id, c.title, c.idx, c.text
+         FROM knowledge_chunks c JOIN unnest($1::text[], $2::int[]) AS w(doc, idx) ON c.document_id = w.doc AND c.idx = w.idx`,
+      [docs, indexes]);
+    return rows.map((r) => createChunk({ documentId: r.document_id, title: r.title, index: r.idx, text: r.text }));
+  }
+
   async search(query, topK, { signal } = {}) {
     const [vector] = await this.embedder.embed([`${this.queryPrefix}${query}`], { signal });
     const { rows } = await this.pool.query(

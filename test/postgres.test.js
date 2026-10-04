@@ -92,6 +92,24 @@ test('PgVectorRetriever: pencarian semantik, indeks inkremental, hapus chunk', o
   } finally { await llm.stop(); }
 });
 
+test('PgVectorRetriever.neighbors: chunk bertetangga (±1) dari dokumen yang sama lewat SQL', opts, async () => {
+  await reset();
+  await migrateDocuments(pool);
+  const repo = new PostgresKnowledgeRepository(pool);
+  for (const id of ['a', 'b']) await repo.save(doc(id, id, 'x'));
+  const llm = await startFakeLlm();
+  try {
+    const retriever = await PgVectorRetriever.create({ pool, embedder: new OpenAiCompatibleEmbedder({ baseUrl: llm.baseUrl, model: 'emb' }), logger: quiet });
+    const chunks = [0, 1, 2, 3].map((i) => chunk('a', 'Daftar', `butir nomor ${i}`, i)).concat([chunk('b', 'Lain', 'dokumen lain', 0), chunk('b', 'Lain', 'dokumen lain dua', 1)]);
+    await retriever.index(chunks);
+    assert.deepEqual((await retriever.neighbors([chunks[1]])).map((c) => c.id).sort(), ['a#0', 'a#2']);
+    assert.deepEqual((await retriever.neighbors([chunks[0], chunks[5]])).map((c) => c.id).sort(), ['a#1', 'b#0']);
+    assert.deepEqual((await retriever.neighbors([chunks[3]], { radius: 2 })).map((c) => c.id).sort(), ['a#1', 'a#2']);
+    assert.deepEqual(await retriever.neighbors([]), []);
+    assert.equal((await retriever.neighbors([chunks[1]]))[0].title, 'Daftar');
+  } finally { await llm.stop(); }
+});
+
 test('PgVectorRetriever: dimensi embedding berubah → tabel chunk dibuat ulang', opts, async () => {
   await reset();
   await migrateDocuments(pool);

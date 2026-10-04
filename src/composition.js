@@ -33,7 +33,7 @@ import { createServer } from './interface/http/server.js';
  * Implementasi konkret (file/PostgreSQL, TF-IDF/pgvector, LLM) dipilih di bootstrap.js.
  */
 export async function buildApp({
-  repository, adminUsers, settings, assistantDefaults = { name: 'Asisten Virtual', style: '' }, retriever, answerGenerator, minScore, seed = true, seedDir, publicDir,
+  repository, adminUsers, settings, assistantDefaults = { name: 'Asisten Virtual', style: '' }, retriever, answerGenerator, minScore, topK = 6, seed = true, seedDir, publicDir,
   adminToken, bootstrapAdmin = {}, sessionSecret = randomBytes(32).toString('hex'), sessionTtlSeconds = 12 * 3600,
   trustProxy = false, cookieSecure = 'auto', allowPrivateUrls = false, urlFetcher, hasher = new ScryptPasswordHasher(), throttle = new InMemoryLoginThrottle(),
 }) {
@@ -52,7 +52,7 @@ export async function buildApp({
   const server = createServer({
     chat: new ChatController({
       askQuestion: new AskQuestion({
-        retriever, answerGenerator, history, minScore, personas: assistant,
+        retriever, answerGenerator, history, minScore, topK, personas: assistant,
         sourceLinks: {
           urls: async (ids) => {
             const out = {};
@@ -71,7 +71,7 @@ export async function buildApp({
       getKnowledge: new GetKnowledge({ repository }),
       saveKnowledge: new SaveKnowledge({ repository, reindex, newId: randomUUID }),
       deleteKnowledge: new DeleteKnowledge({ repository, reindex }),
-      searchKnowledge: new SearchKnowledge({ retriever, minScore }),
+      searchKnowledge: new SearchKnowledge({ retriever, minScore, topK }),
       extractDocumentText: new ExtractDocumentText({ extractor: documentExtractor }),
       importFromUrl: new ImportKnowledgeFromUrl({ reader: webReader }),
       crawlWebsite: new CrawlWebsite({ reader: webReader }),

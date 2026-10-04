@@ -33,21 +33,32 @@ function newLink(href, label, className) {
   return a;
 }
 
-// Alamat web di dalam teks jawaban dijadikan tautan; tanda baca di ujung (titik, koma, kurung) tidak ikut.
-const URL_IN_TEXT = /https?:\/\/[^\s<>"']+/g;
+// Teks jawaban dirender lewat node DOM (bukan innerHTML): **tebal**, butir daftar ("* " / "- " di awal baris),
+// dan alamat web menjadi tautan. Tanda baca di ujung alamat (titik, koma, kurung) tidak ikut tertaut.
+const INLINE = /\*\*([^*\n]+?)\*\*|https?:\/\/[^\s<>"']+/g;
 function renderText(target, text) {
   const nodes = [];
+  const lines = text.split('\n').map((line) => line.replace(/^(\s*)[*\u2022-]\s+(?=\S)/, '$1\u2022 '));
+  const source = lines.join('\n');
   let last = 0;
-  for (const m of text.matchAll(URL_IN_TEXT)) {
+  for (const m of source.matchAll(INLINE)) {
+    if (m[1] !== undefined) {
+      if (m.index > last) nodes.push(source.slice(last, m.index));
+      const strong = document.createElement('strong');
+      strong.textContent = m[1];
+      nodes.push(strong);
+      last = m.index + m[0].length;
+      continue;
+    }
     const url = m[0].replace(/[.,;:!?)\]}]+$/, '');
     const href = safeHref(url);
     if (!href) continue;
-    if (m.index > last) nodes.push(text.slice(last, m.index));
+    if (m.index > last) nodes.push(source.slice(last, m.index));
     nodes.push(newLink(href, url, 'inline-link'));
     last = m.index + url.length;
   }
-  if (last < text.length) nodes.push(text.slice(last));
-  target.replaceChildren(...nodes); // teks tetap lewat node teks/anchor, bukan innerHTML
+  if (last < source.length) nodes.push(source.slice(last));
+  target.replaceChildren(...nodes);
 }
 
 function renderSources(el, sources) {
