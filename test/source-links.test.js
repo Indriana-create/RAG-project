@@ -20,6 +20,17 @@ test('findSourceUrl: baris "Sumber:" (ID/EN) diambil, yang terakhir menang, hany
     assert.equal(findSourceUrl(bad), undefined, String(bad));
   }
   assert.equal(findSourceUrl('Sumber: javascript:alert(1)\nSumber: https://aman.co/a'), 'https://aman.co/a');
+
+  // Variasi penulisan yang wajar tetap terbaca (akhir baris Windows, tebal, tautan Markdown, teks sesudah URL, kutipan).
+  const ok = 'https://www.idspeaker.com/id/documentation';
+  for (const variant of [
+    `Isi.\r\n\r\nSumber: ${ok}\r\n`, `**Sumber:** ${ok}`, `**Sumber**: ${ok}`, `__Sumber:__ ${ok}`, `Sumber : ${ok}`, `Sumber: [IDSpeaker](${ok})`,
+    `Sumber: <${ok}>`, `Sumber: ${ok} (diakses 4 Oktober 2026)`, `Sumber: ${ok}.`, `> Sumber: ${ok}`, `- Sumber: ${ok}`, `  SUMBER: ${ok}`, `source: ${ok}`,
+  ]) assert.equal(findSourceUrl(variant), ok, variant);
+  // Yang berbahaya tetap ditolak walau dibungkus format Markdown.
+  for (const bad of ['**Sumber:** javascript:alert(1)', 'Sumber: [klik](javascript:alert(1))', 'Sumber: <data:text/html,x>', 'Sumber: [x](https://u:p@evil.co/)']) {
+    assert.equal(findSourceUrl(bad), undefined, bad);
+  }
 });
 
 test('chat: sumber yang punya "Sumber: URL" membawa url (stream dan non-stream), yang tidak punya tidak', async () => {

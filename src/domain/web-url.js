@@ -48,16 +48,19 @@ export function pickSiteLinks(links, baseUrl, limit) {
   return picked;
 }
 
-const SOURCE_LINE = /^[ \t]*(?:Sumber|Source)[ \t]*:[ \t]*(https?:\/\/\S+)[ \t]*$/gim;
+// Awal baris: boleh diawali spasi, kutipan (>), butir (-, *) atau penekanan (**, __). Setelah "Sumber:" boleh berupa
+// URL polos, <URL>, atau tautan Markdown [teks](URL); teks tambahan sesudah URL (mis. "(diakses 2026)") diabaikan.
+const SOURCE_LINE = /^[ \t>*_-]*(?:Sumber|Source)[ \t]*(?:\*\*|__)?[ \t]*:[ \t]*(?:\*\*|__)?[ \t]*(?:\[[^\]\n]*\]\(|<)?(https?:\/\/[^\s)<>\]]+)/gim;
 
 /**
  * Alamat sumber sebuah knowledge, dari baris "Sumber: https://..." di isinya (ditambahkan otomatis oleh impor URL,
- * atau ditulis sendiri oleh admin). Baris terakhir yang berlaku dipakai. Hanya http/https; selain itu diabaikan.
+ * atau ditulis sendiri oleh admin; juga dikenali `Source:`, tebal, dan tautan Markdown). Baris terakhir yang berlaku
+ * dipakai. Hanya http/https tanpa kredensial; selain itu diabaikan.
  */
 export function findSourceUrl(content) {
   let found;
   for (const match of String(content ?? '').matchAll(SOURCE_LINE)) {
-    try { found = parseWebUrl(match[1]).toString(); } catch { /* alamat rusak/berbahaya: lewati */ }
+    try { found = parseWebUrl(match[1].replace(/[.,;:!?]+$/, '')).toString(); } catch { /* alamat rusak/berbahaya: lewati */ }
   }
   return found;
 }
