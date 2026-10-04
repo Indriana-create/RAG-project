@@ -47,3 +47,17 @@ export function pickSiteLinks(links, baseUrl, limit) {
   }
   return picked;
 }
+
+const SOURCE_LINE = /^[ \t]*(?:Sumber|Source)[ \t]*:[ \t]*(https?:\/\/\S+)[ \t]*$/gim;
+
+/**
+ * Alamat sumber sebuah knowledge, dari baris "Sumber: https://..." di isinya (ditambahkan otomatis oleh impor URL,
+ * atau ditulis sendiri oleh admin). Baris terakhir yang berlaku dipakai. Hanya http/https; selain itu diabaikan.
+ */
+export function findSourceUrl(content) {
+  let found;
+  for (const match of String(content ?? '').matchAll(SOURCE_LINE)) {
+    try { found = parseWebUrl(match[1]).toString(); } catch { /* alamat rusak/berbahaya: lewati */ }
+  }
+  return found;
+}

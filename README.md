@@ -246,7 +246,7 @@ Mengganti komponen cukup menulis adapter baru dan mengubah `bootstrap.js` — us
 ## Pengujian
 
 ```bash
-npm test                                                   # 116 tes; 8 tes PostgreSQL otomatis dilewati
+npm test                                                   # 118 tes; 8 tes PostgreSQL otomatis dilewati
 TEST_DATABASE_URL=postgres://user:pass@localhost:5432/ragtest npm test   # + tes PostgreSQL/pgvector
 ```
 
@@ -315,3 +315,9 @@ Tombol saran di layar awal chat **tidak lagi tetap**:
 - **Diatur admin:** di **Admin → Pengaturan asisten → Saran pertanyaan** (satu per baris, maks 6 baris, 120 karakter per baris). Bila terisi, itu yang dipakai; kosongkan untuk kembali ke otomatis.
 - **Buat dengan AI:** tombol itu meminta LLM menyusun 4 pertanyaan dari knowledge aktif (judul + awal isinya), dalam bahasa yang sama dengan knowledge. Hasilnya hanya **diisikan ke kolom** untuk Anda periksa; baru berlaku setelah klik **Simpan pengaturan**. Memerlukan LLM aktif (`LLM_BASE_URL`); tanpa LLM muncul pesan petunjuk.
 - API: `GET /api/suggestions` (publik) dan `POST /api/admin/assistant/suggest` (sesi login). Daftar saran ikut tersimpan di pengaturan asisten (PostgreSQL atau `settings.json`).
+
+## Sumber yang bisa diklik
+
+Di bawah jawaban chatbot, chip sumber (📄 judul knowledge) menjadi **tautan** bila knowledge itu punya alamat web: server membaca baris `Sumber: https://...` di isi knowledge (ditambahkan otomatis oleh **Ambil dari URL**, atau ketik sendiri di akhir isi, juga dikenali `Source:`). Klik membuka halaman aslinya di tab baru (`noopener noreferrer`); knowledge tanpa baris itu tetap label biasa. Alamat web di dalam teks jawaban juga otomatis menjadi tautan.
+
+Keamanan: hanya `http://` dan `https://` yang dijadikan tautan (`javascript:`, `data:`, dst. diabaikan di server **dan** di peramban), alamat tanpa kredensial, dan teks jawaban tidak pernah dimasukkan lewat `innerHTML`. Untuk memperbarui knowledge lama agar chip-nya bisa diklik, tambahkan baris `Sumber: <alamat>` di akhir isinya.

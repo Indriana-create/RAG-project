@@ -9,6 +9,7 @@ const HISTORY_WINDOW = 6;
 const MAX_FOLLOW_UP_TOKENS = 6;
 const NO_TOPICS = { titles: async () => [] };
 const DEFAULT_PERSONA = { current: async () => ({}) };
+const NO_LINKS = { urls: async () => ({}) };
 /** Huruf non-Latin (Arab, Mandarin, dst.) tidak punya kata kunci di tokenizer kita, tetapi pencarian makna multibahasa bisa memprosesnya. */
 const HAS_NON_LATIN_LETTER = /(?!\p{Script=Latin})\p{L}/u;
 
@@ -22,8 +23,8 @@ const HAS_NON_LATIN_LETTER = /(?!\p{Script=Latin})\p{L}/u;
  *   pencarian diulang dengan menyertakan pertanyaan pengguna sebelumnya.
  */
 export class AskQuestion {
-  constructor({ retriever, answerGenerator, history, topics = NO_TOPICS, personas = DEFAULT_PERSONA, topK = 3, minScore = 0.05 }) {
-    Object.assign(this, { retriever, answerGenerator, history, topics, personas, topK, minScore });
+  constructor({ retriever, answerGenerator, history, topics = NO_TOPICS, personas = DEFAULT_PERSONA, sourceLinks = NO_LINKS, topK = 3, minScore = 0.05 }) {
+    Object.assign(this, { retriever, answerGenerator, history, topics, personas, sourceLinks, topK, minScore });
   }
 
   /** Jawaban utuh (sekali kirim). */
@@ -93,9 +94,12 @@ export class AskQuestion {
       }
     }
 
-    const sources = [...new Map(hits.map((h) => [h.chunk.documentId, {
+    const found = [...new Map(hits.map((h) => [h.chunk.documentId, {
       id: h.chunk.documentId, title: h.chunk.title, score: Math.round(h.score * 1000) / 1000,
     }])).values()];
+    // Sumber yang punya alamat web dibuat bisa diklik di antarmuka.
+    const links = found.length ? await this.sourceLinks.urls(found.map((s) => s.id)) : {};
+    const sources = found.map((s) => (links[s.id] ? { ...s, url: links[s.id] } : s));
     const topics = hits.length ? [] : await this.topics.titles();
     return { question: q, previous, contexts: hits.map((h) => h.chunk), sources, topics, persona: await this.personas.current() };
   }

@@ -15,11 +15,57 @@ function getSessionId() {
 }
 let sessionId = getSessionId();
 
+/** Hanya http/https yang dijadikan tautan (mencegah javascript:, data:, dst.). */
+function safeHref(value) {
+  try {
+    const url = new URL(String(value));
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : null;
+  } catch { return null; }
+}
+
+function newLink(href, label, className) {
+  const a = document.createElement('a');
+  a.href = href;
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+  a.textContent = label;
+  if (className) a.className = className;
+  return a;
+}
+
+// Alamat web di dalam teks jawaban dijadikan tautan; tanda baca di ujung (titik, koma, kurung) tidak ikut.
+const URL_IN_TEXT = /https?:\/\/[^\s<>"']+/g;
+function renderText(target, text) {
+  const nodes = [];
+  let last = 0;
+  for (const m of text.matchAll(URL_IN_TEXT)) {
+    const url = m[0].replace(/[.,;:!?)\]}]+$/, '');
+    const href = safeHref(url);
+    if (!href) continue;
+    if (m.index > last) nodes.push(text.slice(last, m.index));
+    nodes.push(newLink(href, url, 'inline-link'));
+    last = m.index + url.length;
+  }
+  if (last < text.length) nodes.push(text.slice(last));
+  target.replaceChildren(...nodes); // teks tetap lewat node teks/anchor, bukan innerHTML
+}
+
 function renderSources(el, sources) {
   if (!sources.length) return;
   const box = document.createElement('div');
   box.className = 'sources';
-  for (const s of sources) { const chip = document.createElement('span'); chip.textContent = `📄 ${s.title}`; box.append(chip); }
+  for (const s of sources) {
+    const href = s.url && safeHref(s.url);
+    if (href) {
+      const chip = newLink(href, `📄 ${s.title} ↗`, 'source-link');
+      chip.title = href;
+      box.append(chip);
+    } else {
+      const chip = document.createElement('span');
+      chip.textContent = `📄 ${s.title}`;
+      box.append(chip);
+    }
+  }
   el.append(box);
 }
 
@@ -27,7 +73,7 @@ function addMessage(role, text, sources = []) {
   $('welcome')?.remove();
   const el = document.createElement('div');
   el.className = `msg ${role}`;
-  el.textContent = text; // textContent: aman dari XSS
+  renderText(el, text); // node teks/anchor, bukan innerHTML: aman dari XSS
   renderSources(el, sources);
   messagesEl.append(el);
   messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -56,11 +102,12 @@ async function send(question) {
         if (nearBottom) messagesEl.scrollTop = messagesEl.scrollHeight;
       },
     });
+    if (body) renderText(body, body.textContent); // setelah selesai, alamat web dalam jawaban menjadi tautan
     renderSources(el, reply.sources);
   } catch (err) {
     el.classList.add('error');
     if (body) body.textContent += `\n\n⚠ ${err.message}`;
-    else el.textContent = err.message;
+    else renderText(el, err.message);
   } finally {
     messagesEl.scrollTop = messagesEl.scrollHeight;
     sendBtn.disabled = false; input.focus();

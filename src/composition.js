@@ -9,6 +9,7 @@ import {
 import { AssistantSettingsService } from './application/use-cases/assistant-settings.js';
 import { GenerateSuggestions, GetSuggestions } from './application/use-cases/suggestions.js';
 import { SearchKnowledge } from './application/use-cases/search-knowledge.js';
+import { findSourceUrl } from './domain/web-url.js';
 import { ExtractDocumentText } from './application/use-cases/extract-document-text.js';
 import { createDocumentTextExtractor } from './infrastructure/documents/index.js';
 import { CrawlWebsite, ImportKnowledgeFromUrl } from './application/use-cases/import-from-url.js';
@@ -52,6 +53,13 @@ export async function buildApp({
     chat: new ChatController({
       askQuestion: new AskQuestion({
         retriever, answerGenerator, history, minScore, personas: assistant,
+        sourceLinks: {
+          urls: async (ids) => {
+            const out = {};
+            for (const id of ids) { const url = findSourceUrl((await repository.get(id))?.content); if (url) out[id] = url; }
+            return out;
+          },
+        },
         topics: { titles: async () => (await repository.list()).filter((d) => d.enabled).map((d) => d.title) },
       }),
       getHistory: new GetHistory({ history }),

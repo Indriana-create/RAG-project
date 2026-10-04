@@ -62,6 +62,9 @@
  * @property {(input: AnswerInput) => Promise<string>} generate
  * @property {(input: AnswerInput) => AsyncIterable<string>} [stream] opsional: token demi token
  *
+ * @typedef {Object} SourceLinkProvider
+ * @property {(documentIds: string[]) => Promise<Record<string, string>>} urls alamat web sumber per id knowledge (yang punya saja)
+ *
  * @typedef {Object} TopicProvider
  * @property {() => Promise<string[]>} titles judul knowledge yang aktif
  *
