@@ -1,0 +1,66 @@
+services:
+  rag:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-}
+      SESSION_SECRET: ${SESSION_SECRET:-}
+      SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-}
+      TRUST_PROXY: ${TRUST_PROXY:-}
+      COOKIE_SECURE: ${COOKIE_SECURE:-}
+      # --- PostgreSQL (kosong = simpan di file JSON pada volume rag-data) ---
+      DATABASE_URL: ${DATABASE_URL:-}
+      DATABASE_SSL: ${DATABASE_SSL:-}
+      # --- LLM lokal (OpenAI-compatible). Dari kontainer, host Windows/Mac = host.docker.internal ---
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_TEMPERATURE: ${LLM_TEMPERATURE:-}
+      LLM_MAX_TOKENS: ${LLM_MAX_TOKENS:-}
+      LLM_TIMEOUT_MS: ${LLM_TIMEOUT_MS:-}
+      LLM_EXTRA_BODY: ${LLM_EXTRA_BODY:-}
+      # --- Pencarian semantik (butuh DATABASE_URL dengan pgvector) ---
+      EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-}
+      EMBEDDING_STARTUP_WAIT_SECONDS: ${EMBEDDING_STARTUP_WAIT_SECONDS:-}
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
+      EMBEDDING_DOC_PREFIX: ${EMBEDDING_DOC_PREFIX:-}
+      EMBEDDING_QUERY_PREFIX: ${EMBEDDING_QUERY_PREFIX:-}
+      MIN_SCORE: ${MIN_SCORE:-}
+      ASSISTANT_NAME: ${ASSISTANT_NAME:-}
+      ASSISTANT_STYLE: ${ASSISTANT_STYLE:-}
+      SEED_ON_EMPTY: ${SEED_ON_EMPTY:-}
+      # --- Opsional: Claude API bila LLM_BASE_URL kosong ---
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - rag-data:/app/data
+    depends_on:
+      db:
+        condition: service_healthy
+        required: false
+    restart: unless-stopped
+
+  # Hanya untuk pengembangan lokal: docker compose --profile db up --build
+  # lalu DATABASE_URL=postgres://postgres:rag@db:5432/rag. Produksi memakai PostgreSQL server Anda sendiri.
+  db:
+    image: pgvector/pgvector:pg17
+    profiles: ["db"]
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rag}
+      POSTGRES_DB: rag
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d rag"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  rag-data:
+  pgdata:

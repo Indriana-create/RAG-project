@@ -1,0 +1,14 @@
+# Untuk server yang PostgreSQL dan LLM-nya hanya dipublikasikan ke loopback host
+# (mis. 127.0.0.1:5434 dan 127.0.0.1:8100). Kontainer lain tidak bisa menjangkau port
+# loopback host, jadi aplikasi memakai jaringan host dan mengaksesnya lewat 127.0.0.1.
+#
+#   docker compose -f docker-compose.server.yml up -d --build
+#   docker compose -f docker-compose.server.yml logs -f rag
+#
+# Semua pengaturan dibaca dari file .env di folder ini (lihat .env.example).
+services:
+  rag:
+    build: .
+    network_mode: host      # aplikasi mendengarkan langsung di port host ($PORT, bawaan 3000)
+    env_file: .env
+    restart: unless-stopped
