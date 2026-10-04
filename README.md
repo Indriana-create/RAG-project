@@ -1,6 +1,6 @@
 # RAG-project
 
-Chatbot Retrieval-Augmented Generation (RAG) dengan antarmuka web dan **halaman admin** untuk mengelola knowledge, dibangun dengan **Clean Architecture**. Bisa berjalan 100% lokal: **PostgreSQL (+ pgvector)** untuk penyimpanan dan pencarian semantik, serta **LLM lokal** (LM Studio / vLLM / llama.cpp) tanpa API berbayar.
+Chatbot Retrieval-Augmented Generation (RAG) dengan antarmuka web dan **halaman admin** untuk mengelola knowledge, dibangun dengan **Clean Architecture**. Bisa berjalan 100% lokal: **PostgreSQL (+ pgvector)** untuk penyimpanan dan pencarian semantik, serta **LLM lokal** (vLLM; server lain berprotokol OpenAI juga bisa) tanpa API berbayar.
 
 ## Menjalankan
 
@@ -67,19 +67,17 @@ Daftar lengkap ada di `.env.example`.
 
 BE memanggil LLM **langsung** lewat endpoint OpenAI-compatible `/v1/chat/completions` (dengan `stream: true`), bukan lewat n8n — jalur chat tetap secepat mungkin.
 
-| Runtime | Contoh `LLM_BASE_URL` |
-|---|---|
-| LM Studio | `http://localhost:1234/v1` |
-| vLLM | `http://localhost:8000/v1` |
-| llama.cpp `llama-server` | `http://localhost:8080/v1` |
-
-`LLM_MODEL` harus sama dengan nama model di server tersebut. Contoh LM Studio:
+Konfigurasi yang dipakai di server ini: **vLLM** (kontainer `vllm-qwen`, hanya dipublikasikan ke loopback host) dengan model Qwen3.5-9B:
 
 ```bash
-LLM_BASE_URL=http://localhost:1234/v1 LLM_MODEL=nama-model ADMIN_PASSWORD=pilih-sendiri npm start
+LLM_BASE_URL=http://127.0.0.1:8100/v1
+LLM_MODEL=qwen3.5-9b          # persis seperti nama model di server vLLM (cek: GET /v1/models)
+LLM_API_KEY=...               # bila vLLM dijalankan dengan --api-key; isi langsung di .env, jangan dibagikan
 ```
 
-**Dari dalam Docker (Windows/Mac)** `localhost` menunjuk ke kontainer itu sendiri. Pakai `http://host.docker.internal:1234/v1`, dan di LM Studio aktifkan **Serve on Local Network** (bila tidak, koneksi dari Docker ditolak). Firewall Windows juga harus mengizinkan port tersebut.
+Aplikasi hanya memerlukan endpoint berprotokol OpenAI, jadi server lain juga bisa dipakai dengan mengganti `LLM_BASE_URL` (mis. LM Studio `http://localhost:1234/v1`, llama.cpp `llama-server` `http://localhost:8080/v1`, Ollama `http://localhost:11434/v1`). Itu opsional dan **tidak dipakai** pada setup ini.
+
+**Dari dalam Docker**, `localhost` menunjuk ke kontainer itu sendiri. Karena vLLM dan PostgreSQL hanya terbuka di loopback host, `docker-compose.server.yml` memakai `network_mode: host` sehingga `127.0.0.1` di `.env` menunjuk ke host. (Docker Desktop di Windows/Mac: gunakan `host.docker.internal` sebagai ganti `localhost`, dan pastikan firewall mengizinkan portnya.)
 
 **Model "thinking" (mis. Qwen3.x di vLLM).** Mode berpikir membuat jawaban lambat muncul. Matikan per permintaan:
 
